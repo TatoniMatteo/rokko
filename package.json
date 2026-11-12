@@ -1,0 +1,73 @@
+{
+  "name": "rokko",
+  "private": true,
+  "version": "0.1.0-alpha.3",
+  "description": "Rokko — Linux-first local workspace for web apps",
+  "main": "./out/main/index.js",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "node scripts/linux/dev.mjs",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test tests/*.test.mjs",
+    "package:linux": "pnpm build && node scripts/release/package-linux.mjs",
+    "dev:raw": "electron-vite dev",
+    "linux:doctor": "node scripts/linux/dev.mjs --doctor",
+    "linux:setup": "node scripts/linux/dev.mjs --setup",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "release:verify": "node scripts/release/verify.mjs",
+    "smoke:linux": "node scripts/release/smoke-linux.mjs",
+    "smoke:prepare": "node scripts/release/prepare-smoke.mjs"
+  },
+  "dependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.0.4",
+    "electron": "45.3.0",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.8"
+  },
+  "build": {
+    "appId": "dev.rokko.desktop",
+    "productName": "Rokko",
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "executableName": "rokko",
+      "icon": "src/renderer/src/assets/brand/rokko-dark-icon.png",
+      "syncDesktopName": true
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "deb": {
+      "appArmorProfile": "build/apparmor-profile"
+    },
+    "artifactName": "${name}-${version}-linux-${arch}.${ext}",
+    "afterPack": "build/after-pack.cjs",
+    "appImage": {
+      "executableArgs": []
+    }
+  },
+  "packageManager": "pnpm@12.4.1",
+  "desktopName": "dev.rokko.desktop"
+}

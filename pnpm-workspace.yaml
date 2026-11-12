@@ -1,0 +1,11 @@
+packages:
+  - .
+
+# pnpm 12: allow only the reviewed lifecycle scripts.
+allowBuilds:
+  electron: true
+  esbuild: true
+  electron-winstaller: true
+
+minimumReleaseAgeExclude:
+  - electron@45.3.0

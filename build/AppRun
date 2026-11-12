@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+APPDIR=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+for argument in "$@"; do
+  case "$argument" in
+    --no-sandbox|--disable-setuid-sandbox)
+      echo 'Rokko requires Chromium sandboxing. Use a supported installation package.' >&2
+      exit 1
+      ;;
+  esac
+done
+export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+exec "$APPDIR/rokko" "$@"

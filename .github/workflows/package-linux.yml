@@ -1,0 +1,82 @@
+name: Linux packages (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Package format (DEB requires public maintainer metadata)
+        type: choice
+        default: AppImage
+        options: [AppImage, deb, both]
+permissions:
+  contents: read
+concurrency:
+  group: packages-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  package:
+    name: Linux ${{ matrix.arch }} candidate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {arch: x64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Install build-only packaging tools
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y librsvg2-bin squashfs-tools xvfb xauth dbus-x11 apparmor libgtk-3-0t64 libnss3 libgbm1 libasound2t64
+      - run: npm install --global corepack@0.36.0
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm check
+      - run: corepack pnpm audit --audit-level high
+      - name: Build selected native packages
+        env:
+          PACKAGE_TARGET: ${{ inputs.target }}
+        run: |
+          case "$PACKAGE_TARGET" in
+            AppImage|deb) corepack pnpm package:linux "$PACKAGE_TARGET" ;;
+            both) corepack pnpm package:linux ;;
+            *) echo "Invalid package target" >&2; exit 1 ;;
+          esac
+      - run: corepack pnpm release:verify dist/linux-${{ matrix.arch }}
+      - name: Extract verified package for runtime smoke
+        run: corepack pnpm smoke:prepare --artifacts dist/linux-${{ matrix.arch }}
+      - name: Load targeted test profile when Ubuntu requires it
+        id: userns
+        run: |
+          if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ]; then
+            sudo apparmor_parser --replace .codex/tasks/linux-release/prepared-smoke/apparmor-profile
+            echo "loaded=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check packaged UI and restart persistence on virtual X11
+        run: >-
+          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm smoke:linux
+          --prepared .codex/tasks/linux-release/prepared-smoke/prepared.json
+          --output .codex/tasks/linux-release/smoke-output --x11
+      - name: Unload test profile
+        if: ${{ always() && steps.userns.outputs.loaded == 'true' }}
+        run: sudo apparmor_parser --remove .codex/tasks/linux-release/prepared-smoke/apparmor-profile
+      - name: Upload isolated runtime diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rokko-linux-${{ matrix.arch }}-smoke
+          path: .codex/tasks/linux-release/smoke-output/
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rokko-linux-${{ matrix.arch }}-candidate
+          path: |
+            dist/linux-${{ matrix.arch }}/*.deb
+            dist/linux-${{ matrix.arch }}/*.AppImage
+            dist/linux-${{ matrix.arch }}/manifest.json
+            dist/linux-${{ matrix.arch }}/SHA256SUMS.txt
+            dist/linux-${{ matrix.arch }}/BUILD-NOTES.txt
+          if-no-files-found: error
+          retention-days: 14

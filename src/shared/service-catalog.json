@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "templates": [
+    { "id": "gmail", "name": "Gmail", "url": "https://mail.google.com/", "icon": "G" },
+    { "id": "outlook", "name": "Outlook", "url": "https://outlook.live.com/mail/", "icon": "O" },
+    { "id": "whatsapp", "name": "WhatsApp", "url": "https://web.whatsapp.com/", "icon": "W" },
+    { "id": "telegram", "name": "Telegram", "url": "https://web.telegram.org/", "icon": "T" },
+    { "id": "slack", "name": "Slack", "url": "https://app.slack.com/client/", "icon": "S" },
+    { "id": "discord", "name": "Discord", "url": "https://discord.com/app", "icon": "D" },
+    { "id": "github", "name": "GitHub", "url": "https://github.com/", "icon": "G" },
+    { "id": "notion", "name": "Notion", "url": "https://www.notion.so/login", "icon": "N" }
+  ]
+}

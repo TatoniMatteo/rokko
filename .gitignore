@@ -1,0 +1,18 @@
+node_modules/
+out/
+dist/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Generated from the shared SVG when packaging.
+build/icons/
+
+# Local agent material, IDE state and superseded prototype artwork.
+/.codex/
+/AGENTS.md
+/.idea/
+/.vscode/
+/assets/brand-concept.png
