@@ -1,7 +1,23 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { RokkoAPI, AppSnapshot, AppLoadState } from '../shared/contracts/model';
 
+const iconListeners = new Set<(url: string, icon: string) => void>();
+const receiveIcon = (_event: Electron.IpcRendererEvent, url: string, icon: string): void => {
+  for (const listener of iconListeners) listener(url, icon);
+};
 const api: RokkoAPI = {
+  onServiceIcon: callback => {
+    iconListeners.add(callback);
+    if (iconListeners.size === 1) ipcRenderer.on('rokko:service-icon-changed', receiveIcon);
+    return () => {
+      iconListeners.delete(callback);
+      if (!iconListeners.size) ipcRenderer.removeListener('rokko:service-icon-changed', receiveIcon);
+    };
+  },
+  showContextMenu: input => ipcRenderer.invoke('rokko:context-menu', input),
+  setPreferences: input => ipcRenderer.invoke('rokko:preferences', input),
+  moveApp: (id, targetId, after) => ipcRenderer.invoke('rokko:move-app', id, targetId, after),
+  restart: () => ipcRenderer.invoke('rokko:restart'),
   readRambox: (port, token) => ipcRenderer.invoke('rokko:rambox-read', port, token),
   importRambox: input => ipcRenderer.invoke('rokko:rambox-import', input),
   onAppState: callback => {

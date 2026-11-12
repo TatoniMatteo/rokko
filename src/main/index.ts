@@ -1,9 +1,9 @@
-import { app, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification } from 'electron';
+import { app, Menu, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification } from 'electron';
 import appIcon from '../../assets/brand/rokko-dark-icon.png?asset';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AppData, AppSnapshot, AppLoadState, ViewBounds, WebApp } from '../shared/contracts/model';
+import type { ContextMenuAction, AppData, AppSnapshot, AppLoadState, ViewBounds, WebApp } from '../shared/contracts/model';
 import { notificationAllowed, notificationOrigin, validNotificationGrant } from '../shared/notifications/notifications.mjs';
 import { serviceCatalog } from '../shared/services/service-catalog.mjs';
 import { fetchFavicon, validIcon } from '../shared/services/service-icons.mjs';
@@ -13,8 +13,23 @@ import { stopServiceWorkers } from './lifecycle/worker-lifecycle.mjs';
 import { PersistentNotifications } from './notifications/persistent-notifications';
 import { sharesWorkspace, servicePartition } from '../shared/apps/sessions.mjs';
 import { shortcutTarget } from './navigation/shortcuts.mjs';
+import { contextMenuItems } from './navigation/context-menu.mjs';
 import { readMetadata } from './import/rambox-mcp.mjs';
 import { parseRamboxMetadata, planRamboxImport } from '../shared/import/rambox.mjs';
+
+import { defaultPreferences, validatePreferences, dockApps, moveApp, languageList } from '../shared/preferences/preferences.mjs';
+
+const preferencesPath = (): string => join(app.getPath('userData'), 'rokko-preferences.json');
+let preferences = defaultPreferences();
+try { preferences = validatePreferences(JSON.parse(readFileSync(preferencesPath(), 'utf8'))); } catch { /* Compatible defaults. */ }
+const browserLanguage = preferences.language;
+app.commandLine.appendSwitch('lang', browserLanguage === 'it' ? 'it-IT' : 'en-US');
+function savePreferences(next: typeof preferences): void {
+  mkdirSync(app.getPath('userData'), { recursive: true });
+  writeFileSync(preferencesPath() + '.tmp', JSON.stringify(next), { mode: 0o600 });
+  renameSync(preferencesPath() + '.tmp', preferencesPath());
+  preferences = next;
+}
 
 const emptyData = (): AppData => ({
   version: 1,
@@ -68,7 +83,7 @@ function saveData(value: AppData = data): void {
   writeFileSync(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
   renameSync(tmp, file);
 }
-function snapshot(): AppSnapshot { return { data, activeAppId, appStates: Object.fromEntries(appStates) }; }
+function snapshot(): AppSnapshot { return { data, activeAppId, appStates: Object.fromEntries(appStates), preferences, browserLanguage }; }
 function updateAppState(id: string, state: AppLoadState): void {
   if (!views.has(id)) return;
   const previous = appStates.get(id);
@@ -80,7 +95,7 @@ function installNavigation(contents: Electron.WebContents): void {
   contents.on('before-input-event', (event, input) => {
     if (!shellView || (contents !== shellView.webContents &&
         contents !== (activeAppId ? views.get(activeAppId)?.webContents : undefined))) return;
-    const target = shortcutTarget(data, activeAppId, input, overlayOpen);
+    const target = shortcutTarget(data, activeAppId, input, overlayOpen, preferences);
     if (!target) return;
     event.preventDefault();
     try {
@@ -110,6 +125,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
   let view = views.get(appInfo.id);
   if (!view) {
     const partitionSession = session.fromPartition(appInfo.partition);
+    partitionSession.setUserAgent(partitionSession.getUserAgent(), languageList(browserLanguage));
     persistentNotifications.configure(appInfo, partitionSession);
     if (!permissionSessions.has(partitionSession)) {
       permissionSessions.add(partitionSession);
@@ -123,8 +139,18 @@ function ensureView(appInfo: WebApp): WebContentsView {
     view = new WebContentsView({ webPreferences: {
       session: partitionSession, nodeIntegration: false, contextIsolation: true, sandbox: true
     } });
+    view.setBorderRadius(23);
     const remote = view.webContents;
     installNavigation(remote);
+    remote.on('page-favicon-updated', (_event, urls) => {
+      const service = data.apps.find(item => item.id === appInfo.id);
+      if (!service || !urls.length) return;
+      void loadServiceIcon(service.url).then(icon => icon ?? loadServiceIcon(service.url, urls)).then(icon => {
+        if (icon && data.apps.some(item => item.id === service.id && item.url === service.url)) {
+          shellView?.webContents.send('rokko:service-icon-changed', service.url, icon);
+        }
+      }).catch(() => {});
+    });
     views.set(appInfo.id, view);
     const report = (status: AppLoadState['status'], url = appStates.get(appInfo.id)?.url ?? appInfo.url,
       error?: AppLoadState['error']): void => {
@@ -166,7 +192,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
     remote.on('did-create-window', child => {
       const children = accountWindows.get(appInfo.id) ?? new Set<Electron.BrowserWindow>();
       accountWindows.set(appInfo.id, children); children.add(child);
-      const showOrigin = (): void => child.setTitle(`Rokko · ${notificationOrigin(child.webContents.getURL()) ?? 'Sign in'}`);
+      const showOrigin = (): void => child.setTitle(`Rokko · ${notificationOrigin(child.webContents.getURL()) ?? (preferences.language === 'it' ? 'Accedi' : 'Sign in')}`);
       child.on('page-title-updated', event => { event.preventDefault(); showOrigin(); });
       child.webContents.on('did-navigate', showOrigin);
       showOrigin();
@@ -197,9 +223,9 @@ function redrawView(): void {
   if (!appInfo || overlayOpen) return;
   const view = ensureView(appInfo);
   if (appStates.get(appInfo.id)?.status === 'failed') return;
-  const size = win.getContentBounds();
+  const size = shellView.getBounds();
   const safeBounds = validBounds(bounds, size.width, size.height)
-    ? bounds : { x: 238, y: 106, width: Math.max(0, size.width - 238), height: Math.max(0, size.height - 136) };
+    ? bounds : { x: 0, y: 0, width: 0, height: 0 };
   view.setBounds(safeBounds);
   win.contentView.addChildView(view);
 }
@@ -235,8 +261,12 @@ async function closeView(id: string): Promise<void> {
   }
 }
 function setActive(id: string | null): AppSnapshot {
-  if (id !== null && !data.apps.some(a => a.id === id && (a.workspaceId === null || a.workspaceId === data.selectedWorkspaceId))) {
+  if (id !== null && !dockApps(data, preferences).some(a => a.id === id)) {
     throw new Error('App not found in selected workspace');
+  }
+  const service = data.apps.find(a => a.id === id);
+  if (service?.workspaceId && service.workspaceId !== data.selectedWorkspaceId) {
+    const next = { ...data, selectedWorkspaceId: service.workspaceId }; saveData(next); data = next;
   }
   activeAppId = id;
   redrawView();
@@ -247,12 +277,69 @@ async function commitRegistry(next: AppData, invalidate?: string | string[]): Pr
   data = next;
   if (invalidate) await Promise.all((Array.isArray(invalidate) ? invalidate : [invalidate]).map(closeView));
   syncNotificationViews();
-  if (!data.apps.some(item => item.id === activeAppId && (item.workspaceId === null || item.workspaceId === data.selectedWorkspaceId))) activeAppId = null;
+  if (!dockApps(data, preferences).some(item => item.id === activeAppId)) activeAppId = null;
   redrawView();
   return snapshot();
 }
 const serviceIcons = new Map<string, Promise<string | null>>();
+function reloadService(id: string | null): void {
+  if (!id) return;
+  const state = appStates.get(id);
+  if (state) updateAppState(id, { ...state, status: 'loading', error: undefined });
+  views.get(id)?.webContents.reload();
+}
+const iconQueue: Array<() => void> = [];
+let activeIconRequests = 0;
+function loadServiceIcon(site: string, hints: string[] = []): Promise<string | null> {
+  const origin = new URL(site).origin;
+  const cached = serviceIcons.get(origin);
+  if (cached) return cached;
+  if (serviceIcons.size >= 128) serviceIcons.delete(serviceIcons.keys().next().value!);
+  const result = new Promise<string | null>(resolve => {
+    const start = (): void => {
+      activeIconRequests++;
+      const declared = serviceCatalog.templates.find(item => new URL(item.url).origin === origin)?.faviconUrl;
+      void fetchFavicon(site, fetch, hints.length ? hints : declared ? [declared] : []).catch(() => null).then(resolve).finally(() => {
+        activeIconRequests--; iconQueue.shift()?.();
+      });
+    };
+    if (activeIconRequests < 3) start(); else iconQueue.push(start);
+  }).then(icon => { if (!icon && serviceIcons.get(origin) === result) serviceIcons.delete(origin); return icon; });
+  serviceIcons.set(origin, result);
+  return result;
+}
 function registerIpc(): void {
+  let contextMenu: Menu | null = null;
+  ipcMain.handle('rokko:context-menu', (event, input: unknown) => {
+    requireShell(event);
+    const items = contextMenuItems(data, input, preferences.language, [...views.keys()], preferences.hiddenWorkspaces);
+    const id = (input as { id: string }).id;
+    if (!win) return null;
+    contextMenu?.closePopup(win);
+    return new Promise<ContextMenuAction | null>(resolve => {
+      const menu = Menu.buildFromTemplate(items.map(item => ({ id: item.action, label: item.label,
+        enabled: item.enabled, click: () => {
+          try { contextMenuItems(data, input, preferences.language, [...views.keys()], preferences.hiddenWorkspaces); } catch { resolve(null); return; }
+          if (item.action === 'reload') reloadService(id);
+          resolve(item.action);
+        } })));
+      contextMenu = menu;
+      menu.popup({ window: win!, callback: () => { if (contextMenu === menu) contextMenu = null; resolve(null); } });
+    });
+  });
+  ipcMain.handle('rokko:preferences', (event, input: unknown) => {
+    requireShell(event);
+    const next = validatePreferences(input);
+    const ids = new Set(['global', ...data.workspaces.map(w => w.id)]);
+    if ([...next.cardOrder, ...next.hiddenWorkspaces].some(id => !ids.has(id))) throw new Error('Invalid layout');
+    savePreferences(next);
+    if (!dockApps(data, preferences).some(a => a.id === activeAppId)) activeAppId = null;
+    redrawView(); return snapshot();
+  });
+  ipcMain.handle('rokko:move-app', (event, id: unknown, target: unknown, after: unknown) => {
+    requireShell(event); return commitRegistry(moveApp(data, id, target, after));
+  });
+  ipcMain.handle('rokko:restart', event => { requireShell(event); app.relaunch(); app.quit(); });
   let readingRambox = false;
   ipcMain.handle('rokko:rambox-read', async (event, port: unknown, token: unknown) => {
     requireShell(event);
@@ -280,6 +367,9 @@ function registerIpc(): void {
       selectedWorkspaceId: fields.workspaceId ?? data.selectedWorkspaceId };
     saveData(next);
     data = next;
+    if (fields.workspaceId && preferences.hiddenWorkspaces.includes(fields.workspaceId)) {
+      savePreferences({ ...preferences, hiddenWorkspaces: preferences.hiddenWorkspaces.filter(id => id !== fields.workspaceId) });
+    }
     return setActive(id);
   });
   ipcMain.handle('rokko:add-workspace', (event, name: unknown) => {
@@ -342,7 +432,7 @@ function registerIpc(): void {
     if (!DesktopNotification.isSupported()) throw new Error('Desktop notifications are not available');
     testNotifications.get(service.id)?.close();
     const notification = new DesktopNotification({ title: `Rokko · ${service.name}`,
-      body: 'Notifications are enabled for this service.', icon: appIcon });
+      body: preferences.language === 'it' ? 'Le notifiche sono abilitate per questo servizio.' : 'Notifications are enabled for this service.', icon: appIcon });
     testNotifications.set(service.id, notification);
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -362,12 +452,7 @@ function registerIpc(): void {
     if (!data.apps.some(item => item.url === url) && !serviceCatalog.templates.some(item => item.url === url)) {
       throw new Error('Unknown service');
     }
-    const origin = new URL(url).origin;
-    if (!serviceIcons.has(origin)) {
-      if (serviceIcons.size >= 128) serviceIcons.delete(serviceIcons.keys().next().value!);
-      serviceIcons.set(origin, fetchFavicon(url).catch(() => null));
-    }
-    return serviceIcons.get(origin);
+    return loadServiceIcon(url);
   });
   ipcMain.on('rokko:overlay' , (event, open: unknown) => {
     requireShell(event);
@@ -378,7 +463,7 @@ function registerIpc(): void {
   ipcMain.on('rokko:bounds', (event, value: unknown) => {
     requireShell(event);
     if (!win) return;
-    const { width, height } = win.getContentBounds();
+    const { width, height } = shellView!.getBounds();
     if (!validBounds(value, width, height)) return;
     bounds = value as ViewBounds;
     const view = activeAppId ? views.get(activeAppId) : undefined;
@@ -396,11 +481,7 @@ function registerIpc(): void {
   });
   ipcMain.handle('rokko:reload', event => {
     requireShell(event);
-    if (activeAppId) {
-      const state = appStates.get(activeAppId);
-      if (state) updateAppState(activeAppId, { ...state, status: 'loading', error: undefined });
-      views.get(activeAppId)?.webContents.reload();
-    }
+    reloadService(activeAppId);
   });
   ipcMain.handle('rokko:external', (event, url: unknown) => {
     requireShell(event);
@@ -421,7 +502,7 @@ async function createWindow(): Promise<void> {
   shellView.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   const resizeShell = (): void => {
     if (!win || !shellView) return;
-    const { width, height } = win.getContentBounds();
+    const { width, height } = win.contentView.getBounds();
     shellView.setBounds({ x: 0, y: 0, width, height });
     redrawView();
   };
@@ -447,6 +528,9 @@ app.whenReady().then(async () => {
       const service = data.apps.find(service => service.id === id);
       if (!service) return;
       if (service.workspaceId !== null) data.selectedWorkspaceId = service.workspaceId;
+      if (service.workspaceId && preferences.hiddenWorkspaces.includes(service.workspaceId)) {
+        savePreferences({ ...preferences, hiddenWorkspaces: preferences.hiddenWorkspaces.filter(id => id !== service.workspaceId) });
+      }
       overlayOpen = false;
       saveData(); setActive(id);
       win?.show(); win?.focus();
