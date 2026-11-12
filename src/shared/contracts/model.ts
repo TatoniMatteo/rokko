@@ -1,3 +1,4 @@
+import type { ImportRequest, ImportService } from '../import/rambox.mjs';
 export interface WebApp {
   id: string;
   name: string;
@@ -29,6 +30,8 @@ export interface AppLoadState {
 }
 export interface ViewBounds { x: number; y: number; width: number; height: number }
 export interface RokkoAPI {
+  readRambox(port: number, token: string): Promise<ImportService[]>;
+  importRambox(input: ImportRequest): Promise<AppSnapshot>;
   onAppState(callback: (id: string, state: AppLoadState | null) => void): () => void;
   onSnapshot(callback: (snapshot: AppSnapshot) => void): () => void;
   getSnapshot(): Promise<AppSnapshot>;
