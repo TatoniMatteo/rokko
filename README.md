@@ -34,13 +34,14 @@ Nessun account Rokko richiesto, nessuna telemetria e nessun backend del progetto
 - Salvataggio locale della configurazione e sessioni persistenti separate.
 - Notifiche desktop autorizzabili per servizio, con avvio in background e pulsante di prova.
 - Scorciatoie da tastiera per cambiare servizio e workspace, con riepilogo nell’interfaccia.
-- Interfaccia scura con avvio verificato su Ubuntu con Wayland.
+- Barra compatta sui quattro lati e dashboard per organizzare servizi e workspace.
+- Tema chiaro, scuro o di sistema, colori personalizzabili e interfaccia in italiano e inglese.
 
 ### La direzione
 
 **Leggero, senza rinunciare alla reattività.** Consumi contenuti e notifiche tempestive
 sono obiettivi centrali, da dimostrare con misurazioni.
-Sono in programma temi personalizzabili e pacchetti Linux pronti da installare.
+Sono in programma pacchetti Linux pronti da installare.
 
 Rokko è ancora un'**alpha sperimentale**: i pacchetti di distribuzione non sono ancora pronti.
 L’importazione Rambox trasferisce i servizi, senza ricostruire i workspace originali o le sessioni.

@@ -8,6 +8,6 @@
     { "id": "slack", "name": "Slack", "url": "https://app.slack.com/client/", "icon": "S" },
     { "id": "discord", "name": "Discord", "url": "https://discord.com/app", "icon": "D" },
     { "id": "github", "name": "GitHub", "url": "https://github.com/", "icon": "G" },
-    { "id": "notion", "name": "Notion", "url": "https://www.notion.so/login", "icon": "N" }
+    { "id": "notion", "name": "Notion", "url": "https://www.notion.so/login", "icon": "N", "faviconUrl": "https://www.notion.com/front-static/favicon.ico" }
   ]
 }

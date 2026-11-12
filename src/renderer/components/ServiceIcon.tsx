@@ -7,13 +7,24 @@ export function ServiceIcon({ name, url, icon }: { name: string; url: string; ic
   useEffect(() => {
     let mounted = true;
     setFailed(false); setFavicon(null);
+    let visible = false;
+    const load = (): void => {
+      if (icon || !url || !visible) return;
+      void window.rokko.getServiceIcon(url).then(value => {
+        if (mounted && value) { setFavicon(value); setFailed(false); }
+      }).catch(() => {});
+    };
+    const unsubscribe = window.rokko.onServiceIcon((site, value) => {
+      if (mounted && !icon && url && new URL(site).origin === new URL(url).origin) { setFavicon(value); setFailed(false); }
+    });
+    window.addEventListener('online', load);
     const observer = new IntersectionObserver(entries => {
       if (icon || !url || !entries.some(entry => entry.isIntersecting)) return;
       observer.disconnect();
-      void window.rokko.getServiceIcon(url).then(value => { if (mounted) setFavicon(value); }).catch(() => {});
+      visible = true; load();
     });
     if (!icon && url && element.current) observer.observe(element.current);
-    return () => { mounted = false; observer.disconnect(); };
+    return () => { mounted = false; observer.disconnect(); unsubscribe(); window.removeEventListener('online', load); };
   }, [url, icon]);
   const source = icon || favicon;
   return <span ref={element} className="service-icon" aria-hidden="true">{source && !failed

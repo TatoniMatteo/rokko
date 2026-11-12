@@ -19,6 +19,7 @@ test('starter catalog', () => {
 test('rejects unsafe templates', () => {
   for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'http://example.com/', 'https://user:pass@example.com/']) {
     assert.throws(() => validateServiceCatalog({ version: 1, templates: [{ ...template, url }] }));
+    assert.throws(() => validateServiceCatalog({ version: 1, templates: [{ ...template, faviconUrl: url }] }));
   }
   assert.throws(() => validateServiceCatalog({ version: 1, templates: [{ ...template, script: 'alert(1)' }] }));
   assert.throws(() => validateServiceCatalog({ version: 1, templates: [{ ...template, icon: 'https://example.com/icon.svg' }] }));

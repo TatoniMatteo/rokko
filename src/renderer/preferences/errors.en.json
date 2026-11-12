@@ -1,0 +1,18 @@
+{
+  "Icona troppo grande o vuota": "Icon is too large or empty",
+  "Usa un’immagine PNG, JPEG, WebP o ICO": "Use a PNG, JPEG, WebP or ICO image",
+  "Icona non valida": "Invalid icon",
+  "Dati applicazione non validi": "Invalid application data",
+  "Sessione non valida": "Invalid session",
+  "I servizi globali usano sessioni separate": "Global services use separate sessions",
+  "Workspace non trovato": "Workspace not found",
+  "Applicazione non trovata": "Application not found",
+  "Mantieni almeno un workspace": "Keep at least one workspace",
+  "Scegli un workspace di destinazione": "Choose a destination workspace",
+  "Direzione non valida": "Invalid direction",
+  "URL non valido": "Invalid URL",
+  "Inserisci un URL": "Enter a URL",
+  "Sono consentiti solo URL HTTPS senza credenziali": "Only HTTPS URLs without credentials are allowed",
+  "Nome non valido": "Invalid name",
+  "Il nome deve contenere da 1 a 48 caratteri": "Name must contain 1 to 48 characters"
+}

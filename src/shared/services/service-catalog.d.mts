@@ -3,6 +3,7 @@ export interface ServiceTemplate {
   readonly name: string;
   readonly url: string;
   readonly icon: string;
+  readonly faviconUrl?: string;
 }
 export interface ServiceCatalog {
   readonly version: 1;

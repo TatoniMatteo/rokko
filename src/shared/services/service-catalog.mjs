@@ -7,12 +7,13 @@ export function validateServiceCatalog(value) {
   const templates = value.templates.map(template => {
     if (!template || typeof template.id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(template.id) ||
         ids.has(template.id) || typeof template.icon !== 'string' || !/^[A-Z0-9]$/.test(template.icon) ||
-        Object.keys(template).some(key => !['id', 'name', 'url', 'icon'].includes(key))) {
+        Object.keys(template).some(key => !['id', 'name', 'url', 'icon', 'faviconUrl'].includes(key))) {
       throw new Error('Invalid service template');
     }
     ids.add(template.id);
     return Object.freeze({ id: template.id, name: validTitle(template.name),
-      url: normalizeHttpsUrl(template.url), icon: template.icon });
+      url: normalizeHttpsUrl(template.url), icon: template.icon,
+      ...(template.faviconUrl === undefined ? {} : { faviconUrl: normalizeHttpsUrl(template.faviconUrl) }) });
   });
   return Object.freeze({ version: 1, templates: Object.freeze(templates) });
 }

@@ -1,3 +1,4 @@
+import type { Preferences } from '../preferences/preferences.mjs';
 import type { ImportRequest, ImportService } from '../import/rambox.mjs';
 export interface WebApp {
   id: string;
@@ -20,6 +21,8 @@ export interface AppSnapshot {
   data: AppData;
   activeAppId: string | null;
   appStates?: Record<string, AppLoadState>;
+  preferences?: Preferences;
+  browserLanguage?: string;
 }
 export interface AppLoadState {
   status: 'loading' | 'ready' | 'failed';
@@ -29,7 +32,14 @@ export interface AppLoadState {
   error?: number | 'blocked';
 }
 export interface ViewBounds { x: number; y: number; width: number; height: number }
+export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }
+export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show';
 export interface RokkoAPI {
+  onServiceIcon(callback: (url: string, icon: string) => void): () => void;
+  showContextMenu(input: ContextMenuRequest): Promise<ContextMenuAction | null>;
+  setPreferences(input: Preferences): Promise<AppSnapshot>;
+  moveApp(id: string, targetId: string, after: boolean): Promise<AppSnapshot>;
+  restart(): Promise<void>;
   readRambox(port: number, token: string): Promise<ImportService[]>;
   importRambox(input: ImportRequest): Promise<AppSnapshot>;
   onAppState(callback: (id: string, state: AppLoadState | null) => void): () => void;
