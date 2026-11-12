@@ -35,3 +35,14 @@ test('detach after termination error',async()=>{
   contents.debugger.sendCommand=async(method,params)=>method==='Target.closeTarget'?{success:false}:command(method,params);
   await assert.rejects(stopServiceWorkers(contents),/Could not stop/);assert.equal(calls.at(-1),'detach');
 });
+test('shared session cleanup filters origins', async () => {
+  const { contents, calls } = fixture();const command = contents.debugger.sendCommand;
+  contents.debugger.sendCommand = async (method, params) => method === 'Target.getTargets' ? { targetInfos: [
+    { targetId: 'removed', browserContextId: 'own', type: 'service_worker', url: 'https://removed.example/sw.js' },
+    { targetId: 'peer', browserContextId: 'own', type: 'shared_worker', url: 'https://peer.example/worker.js' },
+    { targetId: 'unknown', browserContextId: 'own', type: 'service_worker' },
+    { targetId: 'other-session', browserContextId: 'other', type: 'service_worker', url: 'https://removed.example/sw.js' }
+  ] } : command(method, params);
+  await stopServiceWorkers(contents, ['https://removed.example']);
+  assert.deepEqual(calls.filter(c => c[0] === 'Target.closeTarget').map(c => c[1].targetId), ['removed']);
+});

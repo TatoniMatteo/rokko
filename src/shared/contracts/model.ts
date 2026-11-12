@@ -3,12 +3,12 @@ export interface WebApp {
   id: string;
   name: string;
   url: string;
-  workspaceId: string;
+  workspaceId: string | null;
   partition: string;
   icon?: string;
   notificationOrigin?: string;
 }
-export interface AppInput { name: string; url: string; workspaceId?: string; icon?: string | null; notificationOrigin?: string | null }
+export interface AppInput { name: string; url: string; workspaceId?: string | null; shareWorkspaceSession?: boolean; icon?: string | null; notificationOrigin?: string | null }
 export interface Workspace { id: string; name: string }
 export interface AppData {
   version: 1;

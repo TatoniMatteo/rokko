@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSnapshot, AppInput, AppLoadState, ViewBounds, WebApp, Workspace } from '../shared/contracts/model';
+import { sharesWorkspace } from '../shared/apps/sessions.mjs';
 import { loadError } from '../shared/apps/load-errors.mjs';
 import type { ServiceTemplate } from '../shared/services/service-catalog.mjs';
 import { CatalogPage, AppSettingsPage, WorkspaceSettingsPage, ManagePage } from './pages/SettingsPages';
@@ -18,7 +19,8 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
     plus: <path d="M12 5v14M5 12h14"/>,
-    settings: <><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
+    settings: <><path d="m9 3 .8-1h4.4l.8 1 .4 2 1.4.8 1.9-.7 1.2.2 2.2 3.8-.4 1.2-1.5 1.3v1.6l1.5 1.3.4 1.2-2.2 3.8-1.2.2-1.9-.7-1.4.8-.4 2-.8 1H9.8L9 21l-.4-2-1.4-.8-1.9.7-1.2-.2-2.2-3.8.4-1.2 1.5-1.3v-1.6L2.3 9.5l-.4-1.2 2.2-3.8 1.2-.2 1.9.7 1.4-.8Z"/><circle cx="12" cy="12" r="3"/></>,
+    more: <><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></>,
     reload: <><path d="M20 11a8 8 0 1 1-2.4-5.7"/><path d="M20 4v6h-6"/></>,
     back: <path d="m15 18-6-6 6-6"/>,
     forward: <path d="m9 6 6 6-6 6"/>,
@@ -37,7 +39,7 @@ function Raccoon({ size = 42 }: { size?: number }) {
   return <img src={raccoonUrl} width={size} height={size} alt="Rokko raccoon"/>;
 }
 
-type Page = 'home' | 'catalog' | 'app' | 'workspace' | 'manage' | 'import';
+type Page = 'home' | 'catalog' | 'app' | 'workspace' | 'manage' | 'import' | 'shortcuts';
 function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot>(initial);
   const [appStates, setAppStates] = useState<Record<string, AppLoadState>>({});
@@ -56,9 +58,10 @@ function App() {
   const failure = appState?.status === 'failed' ? loadError(appState.error ?? -2) : null;
   const editingApp = snapshot.data.apps.find(app => app.id === editingAppId);
   const editingWorkspace = snapshot.data.workspaces.find(workspace => workspace.id === editingWorkspaceId);
+  const globalApps = snapshot.data.apps.filter(app => app.workspaceId === null);
   const workspaceApps = snapshot.data.apps.filter(app => app.workspaceId === snapshot.data.selectedWorkspaceId);
   const pageTitle = { home: active?.name ?? 'Home', catalog: 'Applications', app: 'Application settings',
-    workspace: 'Workspace settings', manage: 'Manage applications', import: 'Import from Rambox' }[page];
+    workspace: 'Workspace settings', manage: 'Manage applications', import: 'Import from Rambox', shortcuts: 'Keyboard shortcuts' }[page];
 
   useEffect(() => { void window.rokko.getSnapshot().then(value => {
     setSnapshot(value); setAppStates(value.appStates ?? {});
@@ -83,6 +86,13 @@ function App() {
     update();
     return () => { observer.disconnect(); window.removeEventListener('resize', update); };
   }, []);
+  useEffect(() => {
+    if (page === 'home' && active) return;
+    const content = contentRef.current;
+    if (content?.contains(document.activeElement) && document.activeElement !== content) return;
+    const heading = content?.querySelector('h1');
+    if (heading) { heading.tabIndex = -1; heading.focus(); }
+  }, [page, snapshot.activeAppId, snapshot.data.selectedWorkspaceId]);
   const run = useCallback(async (action: () => Promise<AppSnapshot>, nextPage?: Page) => {
     setBusy(true); setError('');
     try { setSnapshot(await action()); if (nextPage) setPage(nextPage); return true; }
@@ -96,9 +106,9 @@ function App() {
   function openApp(template?: ServiceTemplate, existing?: WebApp) {
     const key = template?.id ?? 'custom';
     setEditingAppId(existing?.id ?? null); setDraftKey(key);
-    setDraft(existing ? { name: existing.name, url: existing.url, workspaceId: existing.workspaceId, icon: existing.icon, notificationOrigin: existing.notificationOrigin }
+    setDraft(existing ? { name: existing.name, url: existing.url, workspaceId: existing.workspaceId, icon: existing.icon, notificationOrigin: existing.notificationOrigin, shareWorkspaceSession: sharesWorkspace(existing) }
       : appDrafts.current.get(key) ?? { name: template?.name ?? '', url: template?.url ?? '',
-        workspaceId: snapshot.data.selectedWorkspaceId });
+        workspaceId: snapshot.data.selectedWorkspaceId, shareWorkspaceSession: true });
     setPreviewUrl(existing?.url ?? template?.url ?? '');
     navigate('app');
   }
@@ -123,14 +133,22 @@ function App() {
     </div>
     <div className="layout">
       <aside className="sidebar">
-        <button className="quick-search" disabled title="Command palette prevista nella roadmap"><Icon name="search" size={17}/> Quick switch <kbd>⌘ K</kbd></button>
+        <button className="quick-search" disabled title="Command palette prevista nella roadmap"><Icon name="search" size={17}/> Quick switch <kbd>Ctrl K</kbd></button>
         <div className="section-label">WORKSPACES <button title="New workspace" onClick={() => openWorkspace()}><Icon name="plus" size={16}/></button></div>
         <div className="workspace-list">{snapshot.data.workspaces.map(workspace => <div className="service-entry" key={workspace.id}>
           <button className={`workspace-item ${workspace.id === snapshot.data.selectedWorkspaceId ? 'active' : ''}`}
             onClick={() => void run(() => window.rokko.selectWorkspace(workspace.id), 'home')}>
             <Icon name="grid" size={16}/><span>{workspace.name}</span></button>
           <button className="row-action icon-btn" aria-label={`Edit workspace ${workspace.name}`} onClick={() => openWorkspace(workspace)}>
-            <Icon name="settings" size={15}/></button></div>)}</div>
+            <Icon name="more" size={15}/></button></div>)}</div>
+        {globalApps.length > 0 && <><div className="section-label">ALWAYS VISIBLE</div><div className="app-list global-apps">
+          {globalApps.map(app => <div className="service-entry" key={app.id}>
+            <button className={`app-item ${app.id === snapshot.activeAppId ? 'active' : ''}`}
+              onClick={() => void run(() => window.rokko.selectApp(app.id), 'home')}>
+              <ServiceIcon name={app.name} url={app.url} icon={app.icon}/><span className="app-name">{app.name}</span>
+              {app.id === snapshot.activeAppId && <span className="selected-dot"/>}</button>
+            <button className="row-action icon-btn" aria-label={`Edit ${app.name}`} onClick={() => openApp(undefined, app)}>
+              <Icon name="more" size={15}/></button></div>)}</div></>}
         <div className="section-label app-section">APPLICATIONS <span>{workspaceApps.length}</span></div>
         <div className="app-list">{workspaceApps.map(app => <div className="service-entry" key={app.id}>
           <button className={`app-item ${app.id === snapshot.activeAppId ? 'active' : ''}`}
@@ -138,11 +156,12 @@ function App() {
             <ServiceIcon name={app.name} url={app.url} icon={app.icon}/><span className="app-name">{app.name}</span>
             {app.id === snapshot.activeAppId && <span className="selected-dot"/>}</button>
           <button className="row-action icon-btn" aria-label={`Edit ${app.name}`} onClick={() => openApp(undefined, app)}>
-            <Icon name="settings" size={15}/></button></div>)}</div>
+            <Icon name="more" size={15}/></button></div>)}</div>
         <button className="add-app" onClick={() => navigate('catalog')}><Icon name="plus" size={17}/> Add application</button>
         <div className="sidebar-bottom"><div className="privacy"><Icon name="moon" size={16}/><span>Midnight theme</span></div>
           <button className="text-button manage-link" onClick={() => navigate('manage')}>Manage applications</button>
           <button className="text-button manage-link" onClick={() => navigate('import')}>Import from Rambox</button>
+          <button className="text-button manage-link" onClick={() => navigate('shortcuts')}>Keyboard shortcuts</button>
           <div className="version">Rokko alpha<br/>Linux-first · Local-only</div></div>
       </aside>
       <section className="work-area">
@@ -158,7 +177,7 @@ function App() {
                 onClick={() => void browserAction(() => window.rokko.goForward())}><Icon name="forward"/></button>
               <button className="icon-btn" title="Ricarica" onClick={() => void browserAction(() => window.rokko.reload())}><Icon name="reload"/></button>
               <button className="icon-btn" title="Apri nel browser" onClick={() => void window.rokko.openExternal(active.url)}><Icon name="external"/></button>
-              <button className="icon-btn" title="Edit application" onClick={() => openApp(undefined, active)}><Icon name="settings"/></button>
+              <button className="icon-btn" title="Edit application" onClick={() => openApp(undefined, active)}><Icon name="more"/></button>
             </>}</div>
         </header>
         <div className="web-content" ref={contentRef}>
@@ -168,6 +187,18 @@ function App() {
               Try again</button><button className="secondary" onClick={() => void browserAction(() => window.rokko.openExternal(appState?.url ?? active.url))}>
               Open in browser</button><button className="secondary" onClick={() => openApp(undefined, active)}>Edit application</button></div>
           </div>}
+          {page === 'shortcuts' && <div className="settings-page"><div className="page-heading"><div>
+            <span className="page-eyebrow">KEYBOARD NAVIGATION</span><h1>Keyboard shortcuts</h1>
+            <p>Move between applications without leaving the keyboard.</p></div></div>
+            <section className="settings-card"><dl className="shortcut-list">
+              <dt><kbd>Ctrl + Tab</kbd></dt><dd>Next application in this workspace</dd>
+              <dt><kbd>Ctrl + Shift + Tab</kbd></dt><dd>Previous application in this workspace</dd>
+              <dt><kbd>Alt + 1…9</kbd></dt><dd>Application at this position in the sidebar</dd>
+              <dt><kbd>Alt + PageUp / PageDown</kbd></dt><dd>Previous / next workspace</dd>
+              <dt><kbd>Alt + Home</kbd></dt><dd>Return to Rokko home</dd>
+            </dl><p className="page-note">Available while using applications, including inside their pages.
+              Navigation shortcuts pause on configuration pages so you can edit safely.
+              Use Tab and Shift + Tab to move through controls, then Enter or Space to activate them.</p></section></div>}
           {page === 'import' && <RamboxImportPage data={snapshot.data} onImported={setSnapshot}/>}
           {page === 'catalog' && <CatalogPage onChoose={template => openApp(template)}/>}
           {page === 'app' && <AppSettingsPage key={editingAppId ?? draftKey} app={editingApp} draft={draft} onDraft={changeDraft}
@@ -178,6 +209,16 @@ function App() {
             data={snapshot.data} busy={busy} onBack={() => navigate('manage')}
             onSave={name => void run(() => editingWorkspaceId ? window.rokko.renameWorkspace(editingWorkspaceId, name)
               : window.rokko.addWorkspace(name), 'manage')}
+            onSession={(app, shared) => void run(() => window.rokko.updateApp(app.id, {
+              name: app.name, url: app.url, workspaceId: app.workspaceId, icon: app.icon,
+              notificationOrigin: app.notificationOrigin, shareWorkspaceSession: shared }))}
+            onAccount={provider => { if (editingWorkspaceId) void run(async () => {
+              const url = provider === 'google' ? 'https://accounts.google.com/' : 'https://account.microsoft.com/';
+              const existing = snapshot.data.apps.find(app => app.workspaceId === editingWorkspaceId && app.url === url && sharesWorkspace(app));
+              if (existing) { await window.rokko.selectWorkspace(editingWorkspaceId); return window.rokko.selectApp(existing.id); }
+              return window.rokko.addApp({ name: provider === 'google' ? 'Google accounts' : 'Microsoft accounts',
+                url, workspaceId: editingWorkspaceId, shareWorkspaceSession: true });
+            }, 'home'); }}
             onRemove={destination => { if (editingWorkspaceId) void run(() => window.rokko.removeWorkspace(editingWorkspaceId, destination), 'manage'); }}/>}
           {page === 'manage' && <ManagePage data={snapshot.data} busy={busy} onEditApp={app => openApp(undefined, app)}
             onEditWorkspace={openWorkspace} onNewWorkspace={() => openWorkspace()} onCatalog={() => navigate('catalog')}

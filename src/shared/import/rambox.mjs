@@ -25,18 +25,18 @@ export function parseRamboxMetadata(value) {
 export function planRamboxImport(data, input, uuid) {
   if (!input || !Array.isArray(input.services) || !input.services.length ||
       data.apps.length + input.services.length > 100) throw new Error('Select between 1 and 100 applications in total');
-  const needsWorkspace = input.services.some(item => item?.workspaceId === null);
+  const needsWorkspace = input.services.some(item => item?.workspaceId === null && !item.global);
   const workspace = needsWorkspace ? { id: uuid(), name: validTitle(input.newWorkspaceName) } : null;
   if (workspace && (data.workspaces.length >= 30 || data.workspaces.some(item => item.name === workspace.name))) {
     throw new Error('Choose an existing workspace or a different new workspace name');
   }
   const workspaces = workspace ? [...data.workspaces, workspace] : [...data.workspaces];
   const apps = input.services.map(item => {
-    if (!item || typeof item !== 'object') throw new Error('Invalid service');
-    const workspaceId = item.workspaceId === null ? workspace?.id : item.workspaceId;
-    if (!workspaces.some(w => w.id === workspaceId)) throw new Error('Choose a destination for every service');
+    if (!item || typeof item !== 'object' || (item.global !== undefined && typeof item.global !== 'boolean')) throw new Error('Invalid service');
+    const workspaceId = item.global === true ? null : item.workspaceId === null ? workspace?.id : item.workspaceId;
+    if (workspaceId !== null && !workspaces.some(w => w.id === workspaceId)) throw new Error('Choose a destination for every service');
     const id = uuid();
     return { id, name: validTitle(item.name), url: importUrl(item.url), workspaceId, partition: `persist:rokko-${id}` };
   });
-  return { ...data, workspaces, apps: [...data.apps, ...apps], selectedWorkspaceId: apps[0].workspaceId };
+  return { ...data, workspaces, apps: [...data.apps, ...apps], selectedWorkspaceId: apps[0].workspaceId ?? data.selectedWorkspaceId };
 }

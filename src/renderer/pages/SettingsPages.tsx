@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AppData, AppInput, WebApp, Workspace } from '../../shared/contracts/model';
 import { serviceCatalog, type ServiceTemplate } from '../../shared/services/service-catalog.mjs';
+import { sharesWorkspace } from '../../shared/apps/sessions.mjs';
 import { notificationOrigin } from '../../shared/notifications/notifications.mjs';
 import { ServiceIcon, readCustomIcon } from '../components/ServiceIcon';
 
@@ -41,10 +42,17 @@ export function AppSettingsPage({ app, draft, onDraft, workspaces, previewUrl, b
         <label htmlFor="app-url">Website URL (HTTPS)</label><input id="app-url" disabled={readingIcon} value={draft.url} required
           onChange={event => onDraft({ ...draft, url: event.target.value,
             notificationOrigin: notificationOrigin(event.target.value) === draft.notificationOrigin ? draft.notificationOrigin : null })}/>
-        <label htmlFor="app-workspace">Workspace</label><select id="app-workspace" disabled={readingIcon} value={draft.workspaceId}
-          onChange={event => onDraft({ ...draft, workspaceId: event.target.value })}>
+        <label htmlFor="app-workspace">Workspace</label><select id="app-workspace" disabled={readingIcon} value={draft.workspaceId ?? "global"}
+          onChange={event => onDraft({ ...draft, workspaceId: event.target.value === 'global' ? null : event.target.value,
+            shareWorkspaceSession: event.target.value === 'global' ? false : draft.shareWorkspaceSession })}>
+          <option value="global">Always visible · no workspace</option>
           {workspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
-        </select></section>
+        </select><label className="notification-toggle"><input id="app-shared-session" type="checkbox"
+          checked={Boolean(draft.workspaceId !== null && draft.shareWorkspaceSession)} disabled={draft.workspaceId === null}
+          onChange={event => onDraft({ ...draft, shareWorkspaceSession: event.target.checked })}/>
+          <span>Use the workspace account session</span></label>
+        <p className="page-note">Workspace sessions share logins between connected services. Other workspaces and global services stay separate.
+          Changing session reloads this app; previous session data stays on this device and is not copied.</p></section>
       <section className="settings-card"><h2>Service icon</h2><div className="icon-preview">
         <ServiceIcon name={draft.name} url={previewUrl} icon={draft.icon}/><div><strong>{draft.icon ? 'Custom image' : 'Website favicon'}</strong>
           <p className="page-note">Automatic icons follow the saved website. Missing icons use initials.</p></div></div>
@@ -89,9 +97,10 @@ export function AppSettingsPage({ app, draft, onDraft, workspaces, previewUrl, b
   </div>;
 }
 
-export function WorkspaceSettingsPage({ workspace, data, busy, onSave, onRemove, onBack }:
+export function WorkspaceSettingsPage({ workspace, data, busy, onSave, onRemove, onBack, onSession, onAccount }:
   { workspace?: Workspace; data: AppData; busy: boolean; onSave: (name: string) => void;
-    onRemove: (destination: string) => void; onBack: () => void }) {
+    onRemove: (destination: string) => void; onBack: () => void; onSession: (app: WebApp, shared: boolean) => void;
+    onAccount: (provider: 'google' | 'microsoft') => void }) {
   const [name, setName] = useState(workspace?.name ?? '');
   const [destination, setDestination] = useState('');
   const count = data.apps.filter(app => app.workspaceId === workspace?.id).length;
@@ -102,9 +111,19 @@ export function WorkspaceSettingsPage({ workspace, data, busy, onSave, onRemove,
       <section className="settings-card"><label htmlFor="workspace-name">Workspace name</label>
         <input id="workspace-name" value={name} onChange={event => setName(event.target.value)} required maxLength={48} autoFocus/>
         <button className="primary" type="submit" disabled={busy}>{workspace ? 'Save workspace' : 'Create workspace'}</button></section>
-    </form>{workspace && <section className="settings-card danger-zone"><h2>Remove workspace</h2>
+    </form>{workspace && <section className="settings-card"><h2>Workspace accounts</h2>
+      <p className="page-note">Sign in through the provider’s account page. Connected services use this workspace’s browser session,
+        including Google sign-in where supported. Each workspace has its own session; passwords and cookies stay in Chromium.</p>
+      <div className="page-actions"><button className="secondary" disabled={busy} onClick={() => onAccount('google')}>Manage Google accounts</button>
+        <button className="secondary" disabled={busy} onClick={() => onAccount('microsoft')}>Manage Microsoft accounts</button></div>
+      <p className="page-note">The account page opens as a service in this workspace. The provider handles account selection and sign-out.
+        Changing a service’s session keeps its previous login data on this device.</p>
+      {data.apps.filter(app => app.workspaceId === workspace.id).map(app => <label className="notification-toggle" key={app.id}>
+        <input type="checkbox" checked={sharesWorkspace(app)} disabled={busy}
+          onChange={event => onSession(app, event.target.checked)}/><span>{app.name} · {sharesWorkspace(app) ? 'Workspace session' : 'Separate session'}</span></label>)}
+    </section>}{workspace && <section className="settings-card danger-zone"><h2>Remove workspace</h2>
       {data.workspaces.length <= 1 ? <p className="page-note">Keep at least one workspace. Create another before removing this one.</p>
-        : <><p className="page-note">Move its {count} application(s) to another workspace. Their accounts and sessions are preserved.</p>
+        : <><p className="page-note">Move its {count} application(s) to another workspace. Separate sessions are preserved; shared services use the destination workspace session.</p>
           <label htmlFor="workspace-destination">Move applications to</label><select id="workspace-destination" value={destination}
             onChange={event => setDestination(event.target.value)}><option value="">Choose a destination…</option>
             {data.workspaces.filter(item => item.id !== workspace.id).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -130,5 +149,12 @@ export function ManagePage({ data, busy, onEditApp, onEditWorkspace, onNewWorksp
           <button className="secondary compact" disabled={busy || index === apps.length - 1}
             aria-label={`Move ${app.name} down`} onClick={() => onReorder(app.id, 1)}>↓</button>
           <button className="secondary" onClick={() => onEditApp(app)}>Edit</button></div></div>)}</section>;
-    })}</div>;
+    })}{data.apps.some(app => app.workspaceId === null) && <section className="settings-card"><h2>Always visible</h2>
+      {data.apps.filter(app => app.workspaceId === null).map((app, index) => <div className="managed-service" key={app.id}>
+        <ServiceIcon name={app.name} url={app.url} icon={app.icon}/><div className="managed-label"><strong>{app.name}</strong><span>{app.url}</span></div>
+        <div className="page-actions"><button className="secondary compact" disabled={busy || index === 0}
+          aria-label={`Move ${app.name} up`} onClick={() => onReorder(app.id, -1)}>↑</button>
+          <button className="secondary compact" disabled={busy || index === data.apps.filter(item => item.workspaceId === null).length - 1}
+            aria-label={`Move ${app.name} down`} onClick={() => onReorder(app.id, 1)}>↓</button>
+          <button className="secondary" onClick={() => onEditApp(app)}>Edit</button></div></div>)}</section>}</div>;
 }
