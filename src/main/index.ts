@@ -4,13 +4,15 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AppData, AppSnapshot, AppLoadState, ViewBounds, WebApp } from '../shared/contracts/model';
-import { notificationAllowed, validNotificationGrant } from '../shared/notifications/notifications.mjs';
+import { notificationAllowed, notificationOrigin, validNotificationGrant } from '../shared/notifications/notifications.mjs';
 import { serviceCatalog } from '../shared/services/service-catalog.mjs';
 import { fetchFavicon, validIcon } from '../shared/services/service-icons.mjs';
 import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } from '../shared/apps/registry.mjs';
 import { normalizeHttpsUrl, validTitle, validBounds } from '../shared/security/validation.mjs';
 import { stopServiceWorkers } from './lifecycle/worker-lifecycle.mjs';
 import { PersistentNotifications } from './notifications/persistent-notifications';
+import { sharesWorkspace, servicePartition } from '../shared/apps/sessions.mjs';
+import { shortcutTarget } from './navigation/shortcuts.mjs';
 import { readMetadata } from './import/rambox-mcp.mjs';
 import { parseRamboxMetadata, planRamboxImport } from '../shared/import/rambox.mjs';
 
@@ -29,6 +31,8 @@ let activeAppId: string | null = null;
 let overlayOpen = false;
 let bounds: ViewBounds = { x: 238, y: 106, width: 942, height: 550 };
 let persistentNotifications: PersistentNotifications;
+const permissionSessions = new WeakSet<Electron.Session>();
+const accountWindows = new Map<string, Set<Electron.BrowserWindow>>();
 
 function statePath(): string { return join(app.getPath('userData'), 'rokko-state.json'); }
 function loadData(): void {
@@ -44,7 +48,7 @@ function isData(value: unknown): value is AppData {
     typeof v.selectedWorkspaceId === 'string' &&
     v.workspaces.every(w => typeof w?.id === 'string' && typeof w?.name === 'string') &&
     v.apps.every(a => typeof a?.id === 'string' && typeof a?.name === 'string' &&
-      typeof a?.url === 'string' && typeof a?.workspaceId === 'string' &&
+      typeof a?.url === 'string' && (a?.workspaceId === null || typeof a?.workspaceId === 'string') &&
       typeof a?.partition === 'string' && a.partition.startsWith('persist:rokko-') &&
       isSafeHttps(a.url) && isValidStoredIcon(a.icon) && isValidStoredGrant(a.notificationOrigin, a.url));
 }
@@ -72,6 +76,26 @@ function updateAppState(id: string, state: AppLoadState): void {
   shellView?.webContents.send('rokko:app-state', id, state);
   if (id === activeAppId && (previous?.status === 'failed' || state.status === 'failed')) redrawView();
 }
+function installNavigation(contents: Electron.WebContents): void {
+  contents.on('before-input-event', (event, input) => {
+    if (!shellView || (contents !== shellView.webContents &&
+        contents !== (activeAppId ? views.get(activeAppId)?.webContents : undefined))) return;
+    const target = shortcutTarget(data, activeAppId, input, overlayOpen);
+    if (!target) return;
+    event.preventDefault();
+    try {
+      if (target.workspaceId !== data.selectedWorkspaceId) {
+        const next = { ...data, selectedWorkspaceId: target.workspaceId };
+        saveData(next); data = next;
+      }
+      setActive(target.appId);
+      shellView.webContents.send('rokko:snapshot-changed', snapshot());
+      const view = target.appId ? views.get(target.appId) : undefined;
+      if (view && appStates.get(target.appId!)?.status !== 'failed') view.webContents.focus();
+      else shellView.webContents.focus();
+    } catch { /* Keep the previous selection if persistence fails. */ }
+  });
+}
 function requireShell(event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): void {
   if (!shellView || event.sender !== shellView.webContents) throw new Error('Unauthorized renderer');
 }
@@ -87,20 +111,20 @@ function ensureView(appInfo: WebApp): WebContentsView {
   if (!view) {
     const partitionSession = session.fromPartition(appInfo.partition);
     persistentNotifications.configure(appInfo, partitionSession);
-    partitionSession.setPermissionRequestHandler((requester, permission, callback, details) => {
-      const owner = views.get(appInfo.id)?.webContents;
-      callback((!requester || requester === owner) && notificationAllowed(
-        data.apps.find(item => item.id === appInfo.id), permission, details.requestingUrl));
-    });
-    partitionSession.setPermissionCheckHandler((requester, permission, origin) => {
-      const owner = views.get(appInfo.id)?.webContents;
-      return (!requester || requester === owner) && notificationAllowed(
-        data.apps.find(item => item.id === appInfo.id), permission, origin);
-    });
+    if (!permissionSessions.has(partitionSession)) {
+      permissionSessions.add(partitionSession);
+      const allowed = (requester: Electron.WebContents | null, permission: string, origin: string): boolean =>
+        data.apps.some(item => item.partition === appInfo.partition &&
+          (!requester || views.get(item.id)?.webContents === requester) && notificationAllowed(item, permission, origin));
+      partitionSession.setPermissionRequestHandler((requester, permission, callback, details) =>
+        callback(allowed(requester, permission, details.requestingUrl)));
+      partitionSession.setPermissionCheckHandler((requester, permission, origin) => allowed(requester, permission, origin));
+    }
     view = new WebContentsView({ webPreferences: {
       session: partitionSession, nodeIntegration: false, contextIsolation: true, sandbox: true
     } });
     const remote = view.webContents;
+    installNavigation(remote);
     views.set(appInfo.id, view);
     const report = (status: AppLoadState['status'], url = appStates.get(appInfo.id)?.url ?? appInfo.url,
       error?: AppLoadState['error']): void => {
@@ -129,8 +153,27 @@ function ensureView(appInfo: WebApp): WebContentsView {
       if (mainFrame) report(appStates.get(appInfo.id)?.status ?? 'ready', url, appStates.get(appInfo.id)?.error);
     });
     remote.setWindowOpenHandler(({ url }) => {
+      const service = data.apps.find(item => item.id === appInfo.id);
+      const accountPopup = !url || url === 'about:blank' || (isSafeHttpsUrl(url) &&
+        ['accounts.google.com', 'login.microsoftonline.com', 'login.live.com'].includes(new URL(url).hostname));
+      if (service && sharesWorkspace(service) && accountPopup && (accountWindows.get(service.id)?.size ?? 0) < 2) {
+        return { action: 'allow', overrideBrowserWindowOptions: { parent: win ?? undefined, fullscreenable: false,
+          webPreferences: { session: partitionSession, nodeIntegration: false, contextIsolation: true, sandbox: true } } };
+      }
       if (isSafeHttpsUrl(url)) void shell.openExternal(url);
       return { action: 'deny' };
+    });
+    remote.on('did-create-window', child => {
+      const children = accountWindows.get(appInfo.id) ?? new Set<Electron.BrowserWindow>();
+      accountWindows.set(appInfo.id, children); children.add(child);
+      const showOrigin = (): void => child.setTitle(`Rokko · ${notificationOrigin(child.webContents.getURL()) ?? 'Sign in'}`);
+      child.on('page-title-updated', event => { event.preventDefault(); showOrigin(); });
+      child.webContents.on('did-navigate', showOrigin);
+      showOrigin();
+      child.once('closed', () => { children.delete(child); if (!children.size) accountWindows.delete(appInfo.id); });
+      child.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      child.webContents.on('will-navigate', (request, url) => { if (!isSafeHttpsUrl(url)) request.preventDefault(); });
+      child.webContents.on('will-redirect', (request, url) => { if (!isSafeHttpsUrl(url)) request.preventDefault(); });
     });
     remote.on('will-navigate', (event, url) => {
       if (!isSafeHttpsUrl(url)) { event.preventDefault(); report('failed', appInfo.url, 'blocked'); }
@@ -174,7 +217,16 @@ async function closeView(id: string): Promise<void> {
   if (win) {
     try { win.contentView.removeChildView(view); } catch { /* already detached */ }
   }
-  try { await stopServiceWorkers(view.webContents); }
+  for (const child of accountWindows.get(id) ?? []) child.destroy();
+  const peers = [...views].filter(([otherId, other]) => otherId !== id &&
+    !other.webContents.isDestroyed() && other.webContents.session === view.webContents.session);
+  const origin = notificationOrigin(appStates.get(id)?.url ?? view.webContents.getURL());
+  const sameOrigin = peers.some(([otherId, other]) =>
+    notificationOrigin(appStates.get(otherId)?.url ?? other.webContents.getURL()) === origin);
+  try {
+    if (!peers.length) await stopServiceWorkers(view.webContents);
+    else if (origin && !sameOrigin) await stopServiceWorkers(view.webContents, [origin]);
+  }
   finally {
     if (!view.webContents.isDestroyed()) view.webContents.close();
     views.delete(id);
@@ -183,19 +235,19 @@ async function closeView(id: string): Promise<void> {
   }
 }
 function setActive(id: string | null): AppSnapshot {
-  if (id !== null && !data.apps.some(a => a.id === id && a.workspaceId === data.selectedWorkspaceId)) {
+  if (id !== null && !data.apps.some(a => a.id === id && (a.workspaceId === null || a.workspaceId === data.selectedWorkspaceId))) {
     throw new Error('App not found in selected workspace');
   }
   activeAppId = id;
   redrawView();
   return snapshot();
 }
-async function commitRegistry(next: AppData, invalidate?: string): Promise<AppSnapshot> {
+async function commitRegistry(next: AppData, invalidate?: string | string[]): Promise<AppSnapshot> {
   saveData(next);
   data = next;
-  if (invalidate) await closeView(invalidate);
+  if (invalidate) await Promise.all((Array.isArray(invalidate) ? invalidate : [invalidate]).map(closeView));
   syncNotificationViews();
-  if (!data.apps.some(item => item.id === activeAppId && item.workspaceId === data.selectedWorkspaceId)) activeAppId = null;
+  if (!data.apps.some(item => item.id === activeAppId && (item.workspaceId === null || item.workspaceId === data.selectedWorkspaceId))) activeAppId = null;
   redrawView();
   return snapshot();
 }
@@ -221,11 +273,11 @@ function registerIpc(): void {
   ipcMain.handle('rokko:snapshot', event => { requireShell(event); return snapshot(); });
   ipcMain.handle('rokko:add-app', (event, input: unknown) => {
     requireShell(event);
-    const fields = appInput(data, input);
+    const { shareWorkspaceSession = false, ...fields } = appInput(data, input);
     if (data.apps.length >= 100) throw new Error('Maximum number of apps reached');
     const id = randomUUID();
-    const next = { ...data, apps: [...data.apps, { id, ...fields, partition: `persist:rokko-${id}` }],
-      selectedWorkspaceId: fields.workspaceId };
+    const next = { ...data, apps: [...data.apps, { id, ...fields, partition: servicePartition(id, fields.workspaceId, shareWorkspaceSession) }],
+      selectedWorkspaceId: fields.workspaceId ?? data.selectedWorkspaceId };
     saveData(next);
     data = next;
     return setActive(id);
@@ -243,7 +295,8 @@ function registerIpc(): void {
   ipcMain.handle('rokko:select-workspace', (event, id: unknown) => {
     requireShell(event);
     if (typeof id !== 'string' || !data.workspaces.some(w => w.id === id)) throw new Error('Unknown workspace');
-    data.selectedWorkspaceId = id; activeAppId = null;
+    data.selectedWorkspaceId = id;
+    if (selectedApp()?.workspaceId !== null) activeAppId = null;
     saveData(); redrawView(); return snapshot();
   });
   ipcMain.handle('rokko:select-app', (event, id: unknown) => {
@@ -267,14 +320,17 @@ function registerIpc(): void {
     const next = updateApp(data, id, input);
     const previous = data.apps.find(item => item.id === id);
     const changed = next.apps.find(item => item.id === id);
-    return commitRegistry(next, previous?.url !== changed?.url || previous?.notificationOrigin !== changed?.notificationOrigin
+    return commitRegistry(next, previous?.partition !== changed?.partition || previous?.url !== changed?.url || previous?.notificationOrigin !== changed?.notificationOrigin
       ? previous?.id : undefined);
   });
   ipcMain.handle('rokko:rename-workspace', (event, id: unknown, name: unknown) => {
     requireShell(event); return commitRegistry(renameWorkspace(data, id, name));
   });
   ipcMain.handle('rokko:remove-workspace', (event, id: unknown, destination: unknown) => {
-    requireShell(event); return commitRegistry(removeWorkspace(data, id, destination));
+    requireShell(event);
+    const next = removeWorkspace(data, id, destination);
+    const changed = next.apps.filter(item => data.apps.find(old => old.id === item.id)?.partition !== item.partition);
+    return commitRegistry(next, changed.map(item => item.id));
   });
   ipcMain.handle('rokko:reorder-app', (event, id: unknown, direction: unknown) => {
     requireShell(event); return commitRegistry(reorderApp(data, id, direction));
@@ -359,6 +415,7 @@ async function createWindow(): Promise<void> {
     preload: join(import.meta.dirname, '../preload/index.cjs'),
     nodeIntegration: false, contextIsolation: true, sandbox: true
   } });
+  installNavigation(shellView.webContents);
   win.contentView.addChildView(shellView);
   shellView.webContents.on('will-navigate', event => event.preventDefault());
   shellView.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -389,7 +446,7 @@ app.whenReady().then(async () => {
     activate: id => {
       const service = data.apps.find(service => service.id === id);
       if (!service) return;
-      data.selectedWorkspaceId = service.workspaceId;
+      if (service.workspaceId !== null) data.selectedWorkspaceId = service.workspaceId;
       overlayOpen = false;
       saveData(); setActive(id);
       win?.show(); win?.focus();

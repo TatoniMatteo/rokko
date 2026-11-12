@@ -1,19 +1,25 @@
+import { sharesWorkspace, servicePartition, workspacePartition } from './sessions.mjs';
 import { normalizeHttpsUrl, validTitle } from '../security/validation.mjs';
 import { validNotificationGrant } from '../notifications/notifications.mjs';
 import { validIcon } from '../services/service-icons.mjs';
 
 export function appInput(data, input) {
   if (!input || typeof input !== 'object') throw new Error('Dati applicazione non validi');
-  const workspaceId = input.workspaceId ?? data.selectedWorkspaceId;
-  if (!data.workspaces.some(workspace => workspace.id === workspaceId)) throw new Error('Workspace non trovato');
+  const workspaceId = input.workspaceId === undefined ? data.selectedWorkspaceId : input.workspaceId;
+  if (input.shareWorkspaceSession !== undefined && typeof input.shareWorkspaceSession !== 'boolean') throw new Error('Sessione non valida');
+  if (workspaceId === null && input.shareWorkspaceSession) throw new Error('I servizi globali usano sessioni separate');
+  if (workspaceId !== null && !data.workspaces.some(workspace => workspace.id === workspaceId)) throw new Error('Workspace non trovato');
   const url = normalizeHttpsUrl(input.url);
   return { name: validTitle(input.name), url, workspaceId, icon: validIcon(input.icon),
-    notificationOrigin: validNotificationGrant(input.notificationOrigin, url) };
+    notificationOrigin: validNotificationGrant(input.notificationOrigin, url), shareWorkspaceSession: input.shareWorkspaceSession };
 }
 export function updateApp(data, id, input) {
   const existing = data.apps.find(app => app.id === id);
   if (!existing) throw new Error('Applicazione non trovata');
-  const updated = { ...existing, ...appInput(data, input) };
+  const { shareWorkspaceSession = sharesWorkspace(existing), ...fields } = appInput(data, input);
+  const partition = shareWorkspaceSession || sharesWorkspace(existing)
+    ? servicePartition(existing.id, fields.workspaceId, shareWorkspaceSession) : existing.partition;
+  const updated = { ...existing, ...fields, partition };
   const apps = existing.workspaceId === updated.workspaceId
     ? data.apps.map(app => app.id === id ? updated : app)
     : [...data.apps.filter(app => app.id !== id), updated];
@@ -31,7 +37,8 @@ export function removeWorkspace(data, id, destinationId) {
   return { ...data, workspaces: data.workspaces.filter(workspace => workspace.id !== id),
     selectedWorkspaceId: data.selectedWorkspaceId === id ? destinationId : data.selectedWorkspaceId,
     apps: [...data.apps.filter(app => app.workspaceId !== id),
-      ...data.apps.filter(app => app.workspaceId === id).map(app => ({ ...app, workspaceId: destinationId }))] };
+      ...data.apps.filter(app => app.workspaceId === id).map(app => ({ ...app, workspaceId: destinationId,
+        partition: sharesWorkspace(app) ? workspacePartition(destinationId) : app.partition }))] };
 }
 export function reorderApp(data, id, direction) {
   if (direction !== -1 && direction !== 1) throw new Error('Direzione non valida');

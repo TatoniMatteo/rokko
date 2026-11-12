@@ -21,17 +21,19 @@ Nessun account Rokko richiesto, nessuna telemetria e nessun backend del progetto
 
 | Uno spazio ordinato | Account separati | Dati sul tuo PC |
 | :--- | :--- | :--- |
-| Raggruppa i servizi in workspace personali e di lavoro. | Aggiungi più istanze dello stesso servizio con sessioni indipendenti. | La configurazione resta locale; ogni servizio mantiene le proprie normali connessioni. |
+| Raggruppa i servizi in workspace personali e di lavoro. | Scegli sessioni indipendenti o condividi il login tra i servizi di un workspace. | La configurazione resta locale; ogni servizio mantiene le proprie normali connessioni. |
 
 ### Già nell'alpha
 
 - Catalogo a griglia con otto servizi e aggiunta libera tramite URL HTTPS.
+- Servizi globali sempre visibili e sessioni condivise del workspace, con gestione account dalle sue impostazioni.
 - Pagine per configurare app e workspace: modifica, spostamento, riordino e trasferimento dei servizi.
 - Favicon automatiche dove disponibili e icone personalizzate salvate localmente.
 - Navigazione avanti/indietro, stato di caricamento e recupero dagli errori di connessione.
 - Importazione dei servizi Rambox tramite MCP locale, con anteprima e scelta dei workspace di destinazione.
 - Salvataggio locale della configurazione e sessioni persistenti separate.
 - Notifiche desktop autorizzabili per servizio, con avvio in background e pulsante di prova.
+- Scorciatoie da tastiera per cambiare servizio e workspace, con riepilogo nell’interfaccia.
 - Interfaccia scura con avvio verificato su Ubuntu con Wayland.
 
 ### La direzione

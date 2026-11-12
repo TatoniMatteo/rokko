@@ -20,13 +20,14 @@ export function RamboxImportPage({ data, onImported }: { data: AppData; onImport
     setRows(services.map(service => ({ ...service, selected: true, destination: '' })));
     setDestination(''); setLoaded(true); setImported(null);
   }
-  const options = <><option value="">Choose a workspace…</option><option value="new">Create a new workspace</option>
+  const options = <><option value="">Choose a workspace…</option><option value="new">Create a new workspace</option><option value="global">Always visible · no workspace</option>
     {data.workspaces.map(w => <option value={w.id} key={w.id}>{w.name}</option>)}</>;
   async function apply() {
     setBusy(true); setError('');
     try {
       const result = await window.rokko.importRambox({ services: selected.map(row => ({ name: row.name,
-        url: row.url, workspaceId: row.destination === 'new' ? null : row.destination })),
+        url: row.url, workspaceId: row.destination === 'new' || row.destination === 'global' ? null : row.destination,
+        ...(row.destination === 'global' ? { global: true } : {}) })),
         ...(selected.some(row => row.destination === 'new') ? { newWorkspaceName: newName } : {}) });
       onImported(result); setImported(selected.length); setRows([]); setLoaded(false);
     } catch { setError('Import failed. Check names, HTTPS URLs, destinations and the 100-application limit. No partial import was saved.'); }

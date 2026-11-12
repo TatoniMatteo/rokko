@@ -14,3 +14,7 @@
 .settings-page .notification-toggle{display:flex;align-items:flex-start;gap:12px;font-weight:400;line-height:1.6}.settings-page .notification-toggle input{width:18px;min-height:18px;height:18px;flex:none;margin:2px 0 0;accent-color:var(--accent)}.notification-toggle strong{overflow-wrap:anywhere}
 
 .load-status{flex:none;font-size:11px;color:var(--muted);margin-left:8px}.icon-btn:disabled{opacity:.35;cursor:default}.service-error{max-width:720px;margin:72px auto;padding:32px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}.service-error h1{font-size:26px;margin:14px 0}.service-error>p{color:var(--muted);line-height:1.6;margin-bottom:28px}
+
+.shortcut-list{display:grid;grid-template-columns:max-content 1fr;gap:18px 24px;align-items:center}.shortcut-list dd{margin:0;color:var(--muted)}h1[tabindex="-1"]:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+
+.global-apps{flex-shrink:0;max-height:25vh}

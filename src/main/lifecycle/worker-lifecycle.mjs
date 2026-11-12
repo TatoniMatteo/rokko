@@ -1,5 +1,5 @@
-/** Stop workers only in this service's isolated session, immediately before disposal. */
-export async function stopServiceWorkers(contents) {
+/** Stop owned workers before disposal; optionally restrict cleanup to unused origins in a shared session. */
+export async function stopServiceWorkers(contents, origins) {
   if (contents.isDestroyed()) return;
   const debuggerApi = contents.debugger;
   if (debuggerApi.isAttached()) throw new Error('Cannot dispose a service while its debugger is attached');
@@ -13,6 +13,10 @@ export async function stopServiceWorkers(contents) {
     for (const target of targetInfos) {
       if (target.browserContextId !== targetInfo.browserContextId ||
           !['shared_worker', 'service_worker'].includes(target.type)) continue;
+      if (origins) {
+        let origin; try { origin = new URL(target.url).origin; } catch { continue; }
+        if (!origins.includes(origin)) continue;
+      }
       const result = await debuggerApi.sendCommand('Target.closeTarget', { targetId: target.targetId });
       if (!result.success) throw new Error('Could not stop a service worker');
     }

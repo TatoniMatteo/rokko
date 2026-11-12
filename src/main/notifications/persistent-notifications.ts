@@ -37,9 +37,10 @@ export class PersistentNotifications {
   configure(service: WebApp, session: Session): void {
     this.closing.delete(service.id);
     const origin = notificationOrigin(service.url)!;
-    if (this.configurations.get(service.id)?.origin === origin) return;
+    if (this.configurations.get(service.id)?.origin === origin && this.configurations.get(service.id)?.session === session) return;
     this.unregister(service.id);
-    const scripts = (['frame', 'service-worker'] as const).map(type => session.registerPreloadScript({
+    const peer = [...this.configurations.values()].some(config => config.session === session && config.origin === origin);
+    const scripts = peer ? [] : (['frame', 'service-worker'] as const).map(type => session.registerPreloadScript({
       type, filePath: join(import.meta.dirname, '../preload/notifications.cjs'), includeGlobs: [`${origin}/*`]
     }));
     const bind = (worker: ServiceWorkerMain | undefined): void => {
@@ -47,12 +48,17 @@ export class PersistentNotifications {
       this.boundWorkers.add(worker);
       worker.ipc.handle(channel, (event, payload: unknown) => {
         if (event.session !== session || event.serviceWorker !== worker) throw new Error('Unauthorized worker');
-        return this.request(service.id, worker.scope, payload, worker.scope);
+        const owner = [...this.configurations].find(([id, config]) => config.session === session &&
+          config.origin === notificationOrigin(worker.scope) && !this.closing.has(id) &&
+          notificationAllowed(this.options.app(id), 'notifications', worker.scope));
+        if (!owner) throw new Error('Notifications are not allowed');
+        return this.request(owner[0], worker.scope, payload, worker.scope);
       });
       worker.ipc.on('rokko:persistent-event-complete', (event, token: unknown) => {
         if (event.session === session && event.serviceWorker === worker && typeof token === 'string') {
           const task = this.tasks.get(token);
-          if (task?.appId === service.id) task.finish();
+          if (task && this.configurations.get(task.appId)?.session === session &&
+              this.configurations.get(task.appId)?.origin === notificationOrigin(worker.scope)) task.finish();
         }
       });
     };
@@ -71,7 +77,10 @@ export class PersistentNotifications {
     const config = this.configurations.get(id);
     if (!config) return;
     config.session.serviceWorkers.off('running-status-changed', config.listener);
-    for (const script of config.scripts) config.session.unregisterPreloadScript(script);
+    const peer = [...this.configurations].find(([other, value]) => other !== id &&
+      value.session === config.session && value.origin === config.origin)?.[1];
+    if (peer) peer.scripts.push(...config.scripts);
+    else for (const script of config.scripts) config.session.unregisterPreloadScript(script);
     this.configurations.delete(id);
   }
 

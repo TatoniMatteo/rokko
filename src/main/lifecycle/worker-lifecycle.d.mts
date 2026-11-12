@@ -1,2 +1,2 @@
 import type { WebContents } from 'electron';
-export function stopServiceWorkers(contents: WebContents): Promise<void>;
+export function stopServiceWorkers(contents: WebContents, origins?: string[]): Promise<void>;
