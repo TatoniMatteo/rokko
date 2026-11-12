@@ -1,9 +1,9 @@
 import { ipcMain, Notification, nativeImage, type NativeImage, type Session, type ServiceWorkerMain, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import type { WebApp } from '../shared/model';
-import { notificationAllowed, notificationOrigin } from '../shared/notifications.mjs';
-import { persistentRequest } from '../shared/persistent-notifications.mjs';
+import type { WebApp } from '../../shared/contracts/model';
+import { notificationAllowed, notificationOrigin } from '../../shared/notifications/notifications.mjs';
+import { persistentRequest } from '../../shared/notifications/persistent-notifications.mjs';
 
 const channel = 'rokko:persistent-notification';
 interface RecordInfo { id: string; scope: string; title: string; body: string; tag: string; data: string }

@@ -1,4 +1,4 @@
-import { normalizeHttpsUrl } from './validation.mjs';
+import { normalizeHttpsUrl } from '../security/validation.mjs';
 
 export function notificationOrigin(url) {
   try { return new URL(normalizeHttpsUrl(url)).origin; } catch { return null; }

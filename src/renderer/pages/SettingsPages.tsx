@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AppData, AppInput, WebApp, Workspace } from '../../shared/model';
-import { serviceCatalog, type ServiceTemplate } from '../../shared/service-catalog.mjs';
-import { notificationOrigin } from '../../shared/notifications.mjs';
-import { ServiceIcon, readCustomIcon } from './ServiceIcon';
+import type { AppData, AppInput, WebApp, Workspace } from '../../shared/contracts/model';
+import { serviceCatalog, type ServiceTemplate } from '../../shared/services/service-catalog.mjs';
+import { notificationOrigin } from '../../shared/notifications/notifications.mjs';
+import { ServiceIcon, readCustomIcon } from '../components/ServiceIcon';
 
 export function CatalogPage({ onChoose }: { onChoose: (template?: ServiceTemplate) => void }) {
   const [query, setQuery] = useState('');

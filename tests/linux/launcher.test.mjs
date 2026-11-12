@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 test('launcher preserves sandbox and arguments', t => {
   const directory = mkdtempSync(join(tmpdir(), 'rokko launcher '));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  copyFileSync('build/AppRun', join(directory, 'AppRun'));
+  copyFileSync('build/linux/AppRun', join(directory, 'AppRun'));
   chmodSync(join(directory, 'AppRun'), 0o755);
   writeFileSync(join(directory, 'rokko'), '#!/bin/sh\nprintf "%s\\n" "$@"\n', { mode: 0o755 });
   const env = { ...process.env };

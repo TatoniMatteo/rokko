@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { persistentRequest } from '../src/shared/persistent-notifications.mjs';
+import { persistentRequest } from '../../src/shared/notifications/persistent-notifications.mjs';
 const origin = 'https://example.com';
 const show = { action: 'show', scope: origin + '/worker/', title: 'Message', data: '{"id":1}' };
 test('notification payload boundaries', () => {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { serviceCatalog, validateServiceCatalog } from '../src/shared/service-catalog.mjs';
+import { serviceCatalog, validateServiceCatalog } from '../../src/shared/services/service-catalog.mjs';
 
 const template = { id: 'example', name: 'Example', url: 'https://example.com/', icon: 'E' };
 

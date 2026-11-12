@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeHttpsUrl, validTitle, validBounds } from '../src/shared/validation.mjs';
+import { normalizeHttpsUrl, validTitle, validBounds } from '../../src/shared/security/validation.mjs';
 
 test('normalizes HTTPS URLs', () => {
   assert.equal(normalizeHttpsUrl('github.com'), 'https://github.com/');
