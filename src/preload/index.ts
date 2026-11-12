@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { RokkoAPI, AppSnapshot, AppLoadState } from '../shared/model';
+import type { RokkoAPI, AppSnapshot, AppLoadState } from '../shared/contracts/model';
 
 const api: RokkoAPI = {
   onAppState: callback => {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } from '../src/shared/registry.mjs';
+import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } from '../../src/shared/apps/registry.mjs';
 
 const state = () => ({ version: 1, selectedWorkspaceId: 'a',
   workspaces: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], apps: [

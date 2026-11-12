@@ -1,4 +1,4 @@
-import { normalizeHttpsUrl } from './validation.mjs';
+import { normalizeHttpsUrl } from '../security/validation.mjs';
 
 const MAX_ICON_BYTES = 64 * 1024;
 export function rasterIcon(bytes) {

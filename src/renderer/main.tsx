@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AppSnapshot, AppInput, AppLoadState, ViewBounds, WebApp, Workspace } from '../../shared/model';
-import { loadError } from '../../shared/load-errors.mjs';
-import type { ServiceTemplate } from '../../shared/service-catalog.mjs';
-import { CatalogPage, AppSettingsPage, WorkspaceSettingsPage, ManagePage } from './SettingsPages';
-import { ServiceIcon } from './ServiceIcon';
-import raccoonUrl from './assets/brand/rokko-dark-icon.png';
-import './style.css';
+import type { AppSnapshot, AppInput, AppLoadState, ViewBounds, WebApp, Workspace } from '../shared/contracts/model';
+import { loadError } from '../shared/apps/load-errors.mjs';
+import type { ServiceTemplate } from '../shared/services/service-catalog.mjs';
+import { CatalogPage, AppSettingsPage, WorkspaceSettingsPage, ManagePage } from './pages/SettingsPages';
+import { ServiceIcon } from './components/ServiceIcon';
+import raccoonUrl from '../../assets/brand/rokko-dark-icon.png';
+import './styles/style.css';
 
 const initial: AppSnapshot = {
   data: { version: 1, workspaces: [{ id: 'personal', name: 'Personal' }], apps: [], selectedWorkspaceId: 'personal' },

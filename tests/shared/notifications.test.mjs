@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { notificationOrigin, validNotificationGrant, notificationAllowed } from '../src/shared/notifications.mjs';
-import { appInput, updateApp } from '../src/shared/registry.mjs';
+import { notificationOrigin, validNotificationGrant, notificationAllowed } from '../../src/shared/notifications/notifications.mjs';
+import { appInput, updateApp } from '../../src/shared/apps/registry.mjs';
 const service = { id: 'a', url: 'https://example.com/path', notificationOrigin: 'https://example.com' };
 
 test('notification origin scope', () => {

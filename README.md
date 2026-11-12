@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/renderer/src/assets/brand/rokko-dark-icon.png" alt="Rokko" width="128" height="128">
+<img src="assets/brand/rokko-dark-icon.png" alt="Rokko" width="128" height="128">
 
 # Rokko
 

@@ -1,16 +1,16 @@
 import { app, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification } from 'electron';
-import appIcon from '../renderer/src/assets/brand/rokko-dark-icon.png?asset';
+import appIcon from '../../assets/brand/rokko-dark-icon.png?asset';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AppData, AppSnapshot, AppLoadState, ViewBounds, WebApp } from '../shared/model';
-import { notificationAllowed, validNotificationGrant } from '../shared/notifications.mjs';
-import { serviceCatalog } from '../shared/service-catalog.mjs';
-import { fetchFavicon, validIcon } from '../shared/service-icons.mjs';
-import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } from '../shared/registry.mjs';
-import { normalizeHttpsUrl, validTitle, validBounds } from '../shared/validation.mjs';
-import { stopServiceWorkers } from './worker-lifecycle.mjs';
-import { PersistentNotifications } from './persistent-notifications';
+import type { AppData, AppSnapshot, AppLoadState, ViewBounds, WebApp } from '../shared/contracts/model';
+import { notificationAllowed, validNotificationGrant } from '../shared/notifications/notifications.mjs';
+import { serviceCatalog } from '../shared/services/service-catalog.mjs';
+import { fetchFavicon, validIcon } from '../shared/services/service-icons.mjs';
+import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } from '../shared/apps/registry.mjs';
+import { normalizeHttpsUrl, validTitle, validBounds } from '../shared/security/validation.mjs';
+import { stopServiceWorkers } from './lifecycle/worker-lifecycle.mjs';
+import { PersistentNotifications } from './notifications/persistent-notifications';
 
 const emptyData = (): AppData => ({
   version: 1,

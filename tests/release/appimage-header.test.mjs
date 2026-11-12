@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { appImageOffset } from '../scripts/release/inspect-appimage.mjs';
+import { appImageOffset } from '../../scripts/release/inspect-appimage.mjs';
 
 test('AppImage header validation', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'rokko-header-'));

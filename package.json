@@ -14,7 +14,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*/*.test.mjs",
     "package:linux": "pnpm build && node scripts/release/package-linux.mjs",
     "dev:raw": "electron-vite dev",
     "linux:doctor": "node scripts/linux/dev.mjs --doctor",
@@ -53,17 +53,17 @@
       ],
       "category": "Network",
       "executableName": "rokko",
-      "icon": "src/renderer/src/assets/brand/rokko-dark-icon.png",
+      "icon": "assets/brand/rokko-dark-icon.png",
       "syncDesktopName": true
     },
     "directories": {
       "output": "dist"
     },
     "deb": {
-      "appArmorProfile": "build/apparmor-profile"
+      "appArmorProfile": "build/linux/apparmor-profile"
     },
     "artifactName": "${name}-${version}-linux-${arch}.${ext}",
-    "afterPack": "build/after-pack.cjs",
+    "afterPack": "build/hooks/after-pack.cjs",
     "appImage": {
       "executableArgs": []
     }

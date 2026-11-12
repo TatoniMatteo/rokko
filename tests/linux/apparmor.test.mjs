@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { profileForExecutable, profileName } from '../scripts/linux/apparmor.mjs';
+import { profileForExecutable, profileName } from '../../scripts/linux/apparmor.mjs';
 
 test('AppArmor profile grants userns only to requested executable', () => {
   const binary = '/home/test/rokko/node_modules/electron/dist/electron';

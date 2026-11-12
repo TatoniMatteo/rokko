@@ -1,6 +1,6 @@
-import { normalizeHttpsUrl, validTitle } from './validation.mjs';
-import { validNotificationGrant } from './notifications.mjs';
-import { validIcon } from './service-icons.mjs';
+import { normalizeHttpsUrl, validTitle } from '../security/validation.mjs';
+import { validNotificationGrant } from '../notifications/notifications.mjs';
+import { validIcon } from '../services/service-icons.mjs';
 
 export function appInput(data, input) {
   if (!input || typeof input !== 'object') throw new Error('Dati applicazione non validi');

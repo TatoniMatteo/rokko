@@ -1,5 +1,5 @@
 import data from './service-catalog.json' with { type: 'json' };
-import { normalizeHttpsUrl, validTitle } from './validation.mjs';
+import { normalizeHttpsUrl, validTitle } from '../security/validation.mjs';
 
 export function validateServiceCatalog(value) {
   if (!value || value.version !== 1 || !Array.isArray(value.templates)) throw new Error('Invalid service catalog');

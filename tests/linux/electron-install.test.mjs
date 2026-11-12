@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureElectronInstalled } from '../scripts/linux/electron-install.mjs';
+import { ensureElectronInstalled } from '../../scripts/linux/electron-install.mjs';
 
 const root = '/tmp/rokko-test';
 const marker = `${root}/node_modules/electron/path.txt`;

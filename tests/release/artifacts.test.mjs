@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { artifactNames, describeArtifact, writeManifest, verifyManifest } from '../scripts/release/artifacts.mjs';
+import { artifactNames, describeArtifact, writeManifest, verifyManifest } from '../../scripts/release/artifacts.mjs';
 
 test('artifact targets', () => {
   assert.deepEqual(artifactNames('0.1.0-alpha.3', 'arm64'),

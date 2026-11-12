@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stopServiceWorkers } from '../src/main/worker-lifecycle.mjs';
+import { stopServiceWorkers } from '../../src/main/lifecycle/worker-lifecycle.mjs';
 function fixture(context='own') {
   const calls=[];
   const debuggerApi={isAttached:()=>false,attach:()=>calls.push('attach'),detach:()=>calls.push('detach'),

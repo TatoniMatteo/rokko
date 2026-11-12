@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rasterIcon, validIcon, fetchFavicon } from '../src/shared/service-icons.mjs';
+import { rasterIcon, validIcon, fetchFavicon } from '../../src/shared/services/service-icons.mjs';
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9XkAAAAASUVORK5CYII=', 'base64');
 
 test('raster icon validation', () => {
