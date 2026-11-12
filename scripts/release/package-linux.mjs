@@ -28,7 +28,7 @@ const commit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'u
 const status = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' });
 for (const name of names) {
   if (name.endsWith('.AppImage')) {
-    await inspectAppImage(join(output, name), join(root, 'build/AppRun'), pkg.desktopName);
+    await inspectAppImage(join(output, name), join(root, 'build/linux/AppRun'), pkg.desktopName);
   }
 }
 const manifest = await writeManifest(output, {

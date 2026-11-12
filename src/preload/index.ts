@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { RokkoAPI, AppSnapshot, AppLoadState } from '../shared/model';
+import type { RokkoAPI, AppSnapshot, AppLoadState } from '../shared/contracts/model';
 
 const api: RokkoAPI = {
+  readRambox: (port, token) => ipcRenderer.invoke('rokko:rambox-read', port, token),
+  importRambox: input => ipcRenderer.invoke('rokko:rambox-import', input),
   onAppState: callback => {
     const listener = (_event: Electron.IpcRendererEvent, id: string, state: AppLoadState | null): void => callback(id, state);
     ipcRenderer.on('rokko:app-state', listener);

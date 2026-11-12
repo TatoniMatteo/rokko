@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/renderer/src/assets/brand/rokko-dark-icon.png" alt="Rokko" width="128" height="128">
+<img src="assets/brand/rokko-dark-icon.png" alt="Rokko" width="128" height="128">
 
 # Rokko
 
@@ -29,6 +29,7 @@ Nessun account Rokko richiesto, nessuna telemetria e nessun backend del progetto
 - Pagine per configurare app e workspace: modifica, spostamento, riordino e trasferimento dei servizi.
 - Favicon automatiche dove disponibili e icone personalizzate salvate localmente.
 - Navigazione avanti/indietro, stato di caricamento e recupero dagli errori di connessione.
+- Importazione dei servizi Rambox tramite MCP locale, con anteprima e scelta dei workspace di destinazione.
 - Salvataggio locale della configurazione e sessioni persistenti separate.
 - Notifiche desktop autorizzabili per servizio, con avvio in background e pulsante di prova.
 - Interfaccia scura con avvio verificato su Ubuntu con Wayland.
@@ -37,11 +38,11 @@ Nessun account Rokko richiesto, nessuna telemetria e nessun backend del progetto
 
 **Leggero, senza rinunciare alla reattività.** Consumi contenuti e notifiche tempestive
 sono obiettivi centrali, da dimostrare con misurazioni.
-Sono in programma l'importazione guidata da Rambox,
-temi personalizzabili e pacchetti Linux pronti da installare.
+Sono in programma temi personalizzabili e pacchetti Linux pronti da installare.
 
-Rokko è ancora un'**alpha sperimentale**: importazione e pacchetti di distribuzione
-non sono ancora pronti. Il supporto alle notifiche è ancora parziale; accesso e notifiche dei singoli servizi restano da verificare.
+Rokko è ancora un'**alpha sperimentale**: i pacchetti di distribuzione non sono ancora pronti.
+L’importazione Rambox trasferisce i servizi, senza ricostruire i workspace originali o le sessioni.
+Il supporto alle notifiche è ancora parziale; accesso e notifiche dei singoli servizi restano da verificare.
 
 ### Provalo dai sorgenti
 
