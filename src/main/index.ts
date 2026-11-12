@@ -11,6 +11,8 @@ import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } fro
 import { normalizeHttpsUrl, validTitle, validBounds } from '../shared/security/validation.mjs';
 import { stopServiceWorkers } from './lifecycle/worker-lifecycle.mjs';
 import { PersistentNotifications } from './notifications/persistent-notifications';
+import { readMetadata } from './import/rambox-mcp.mjs';
+import { parseRamboxMetadata, planRamboxImport } from '../shared/import/rambox.mjs';
 
 const emptyData = (): AppData => ({
   version: 1,
@@ -199,6 +201,23 @@ async function commitRegistry(next: AppData, invalidate?: string): Promise<AppSn
 }
 const serviceIcons = new Map<string, Promise<string | null>>();
 function registerIpc(): void {
+  let readingRambox = false;
+  ipcMain.handle('rokko:rambox-read', async (event, port: unknown, token: unknown) => {
+    requireShell(event);
+    if (typeof port !== 'number' || !Number.isInteger(port) || port < 1024 || port > 65535 ||
+        typeof token !== 'string' || !token || token.length > 1024 || /[\r\n]/.test(token)) {
+      throw new Error('Enter the local Rambox port and temporary token');
+    }
+    if (readingRambox) throw new Error('A Rambox read is already in progress');
+    readingRambox = true;
+    try { return parseRamboxMetadata(await readMetadata({ endpoint: `http://127.0.0.1:${port}/mcp`, token })); }
+    catch { throw new Error('Could not read services. Check Rambox MCP settings and try again.'); }
+    finally { readingRambox = false; }
+  });
+  ipcMain.handle('rokko:rambox-import', (event, input: unknown) => {
+    requireShell(event);
+    return commitRegistry(planRamboxImport(data, input, randomUUID));
+  });
   ipcMain.handle('rokko:snapshot', event => { requireShell(event); return snapshot(); });
   ipcMain.handle('rokko:add-app', (event, input: unknown) => {
     requireShell(event);
