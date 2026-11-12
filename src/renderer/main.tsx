@@ -4,6 +4,7 @@ import type { AppSnapshot, AppInput, AppLoadState, ViewBounds, WebApp, Workspace
 import { loadError } from '../shared/apps/load-errors.mjs';
 import type { ServiceTemplate } from '../shared/services/service-catalog.mjs';
 import { CatalogPage, AppSettingsPage, WorkspaceSettingsPage, ManagePage } from './pages/SettingsPages';
+import { RamboxImportPage } from './pages/RamboxImportPage';
 import { ServiceIcon } from './components/ServiceIcon';
 import raccoonUrl from '../../assets/brand/rokko-dark-icon.png';
 import './styles/style.css';
@@ -36,7 +37,7 @@ function Raccoon({ size = 42 }: { size?: number }) {
   return <img src={raccoonUrl} width={size} height={size} alt="Rokko raccoon"/>;
 }
 
-type Page = 'home' | 'catalog' | 'app' | 'workspace' | 'manage';
+type Page = 'home' | 'catalog' | 'app' | 'workspace' | 'manage' | 'import';
 function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot>(initial);
   const [appStates, setAppStates] = useState<Record<string, AppLoadState>>({});
@@ -57,7 +58,7 @@ function App() {
   const editingWorkspace = snapshot.data.workspaces.find(workspace => workspace.id === editingWorkspaceId);
   const workspaceApps = snapshot.data.apps.filter(app => app.workspaceId === snapshot.data.selectedWorkspaceId);
   const pageTitle = { home: active?.name ?? 'Home', catalog: 'Applications', app: 'Application settings',
-    workspace: 'Workspace settings', manage: 'Manage applications' }[page];
+    workspace: 'Workspace settings', manage: 'Manage applications', import: 'Import from Rambox' }[page];
 
   useEffect(() => { void window.rokko.getSnapshot().then(value => {
     setSnapshot(value); setAppStates(value.appStates ?? {});
@@ -141,6 +142,7 @@ function App() {
         <button className="add-app" onClick={() => navigate('catalog')}><Icon name="plus" size={17}/> Add application</button>
         <div className="sidebar-bottom"><div className="privacy"><Icon name="moon" size={16}/><span>Midnight theme</span></div>
           <button className="text-button manage-link" onClick={() => navigate('manage')}>Manage applications</button>
+          <button className="text-button manage-link" onClick={() => navigate('import')}>Import from Rambox</button>
           <div className="version">Rokko alpha<br/>Linux-first · Local-only</div></div>
       </aside>
       <section className="work-area">
@@ -166,6 +168,7 @@ function App() {
               Try again</button><button className="secondary" onClick={() => void browserAction(() => window.rokko.openExternal(appState?.url ?? active.url))}>
               Open in browser</button><button className="secondary" onClick={() => openApp(undefined, active)}>Edit application</button></div>
           </div>}
+          {page === 'import' && <RamboxImportPage data={snapshot.data} onImported={setSnapshot}/>}
           {page === 'catalog' && <CatalogPage onChoose={template => openApp(template)}/>}
           {page === 'app' && <AppSettingsPage key={editingAppId ?? draftKey} app={editingApp} draft={draft} onDraft={changeDraft}
             workspaces={snapshot.data.workspaces} previewUrl={previewUrl} busy={busy} onError={setError}
