@@ -13,6 +13,7 @@ import { stopServiceWorkers } from './lifecycle/worker-lifecycle.mjs';
 import { PersistentNotifications } from './notifications/persistent-notifications';
 import { sharesWorkspace, servicePartition } from '../shared/apps/sessions.mjs';
 import { shortcutTarget } from './navigation/shortcuts.mjs';
+import { serviceUserAgent } from './navigation/user-agent.mjs';
 import { contextMenuItems } from './navigation/context-menu.mjs';
 import { readMetadata } from './import/rambox-mcp.mjs';
 import { parseRamboxMetadata, planRamboxImport } from '../shared/import/rambox.mjs';
@@ -141,6 +142,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
     } });
     view.setBorderRadius(23);
     const remote = view.webContents;
+    remote.setUserAgent(serviceUserAgent(appInfo.url, partitionSession.getUserAgent()));
     installNavigation(remote);
     remote.on('page-favicon-updated', (_event, urls) => {
       const service = data.apps.find(item => item.id === appInfo.id);
