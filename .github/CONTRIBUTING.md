@@ -66,3 +66,24 @@ licenze di Chromium/asset o SBOM: queste verifiche restano necessarie prima del 
 Una PR deve indicare problema, comportamento risultante, verifiche e limiti. Per rollback
 ripristinare il commit precedente completo (manifest e lock), reinstallare frozen e ripetere
 le verifiche; non copiare o eliminare partizioni Chromium e non fare downgrade ciechi dei profili.
+
+## Matrice Linux
+
+| Ambiente x86_64 | Stato delle prove | Limiti |
+|---|---|---|
+| Ubuntu 26.04.1, GNOME/Wayland | Riferimento desktop; avvio e QA shell/viste verificati | Account reali, scaling e pacchetti richiedono prove dedicate |
+| Stesso host, X11 virtuale Xvfb | QA shell/viste verificato | Non certifica una sessione Xorg fisica, GPU o tray |
+| Ubuntu 24.04, GitHub Actions | Installazione frozen, typecheck, unit test, build e audit | Runner headless: non è una prova del desktop |
+| Ubuntu 24.04 desktop, Xorg fisico | Candidati per la prossima matrice | Non ancora supporto certificato |
+| Altre distro, ARM64 e altri OS | Fuori dalla baseline corrente | Solo dopo valutazione e prove esplicite |
+
+Una prova desktop registra commit, architettura, distro, ambiente grafico, scaling e runtime.
+Verificare avvio sandboxato, resize e quattro posizioni barra, menu/focus, due sessioni,
+riavvio e cleanup. Le prove successive includono 100/125/200% DPI, due monitor, offline e
+standby; tray disponibile/assente e policy chiusura sono lavoro ancora aperto.
+
+Su GNOME non presumere la presenza del tray: Home/impostazioni e un comando esplicito per
+uscire devono restare raggiungibili. Servono decisioni e verifiche in #21/#24.
+Il permesso notifiche non garantisce banner se l'OS applica DND; Web Push resta una capacità
+separata e il lavoro sulle notifiche è differito. La matrice non lo riattiva.
+DEB/AppImage e installazioni pulite sono verifiche di rilascio separate, attualmente differite.
