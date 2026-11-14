@@ -29,7 +29,7 @@ export interface AppLoadState {
   url: string;
   canGoBack: boolean;
   canGoForward: boolean;
-  error?: number | 'blocked';
+  error?: number | 'blocked' | 'crashed';
 }
 export interface ViewBounds { x: number; y: number; width: number; height: number }
 export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }

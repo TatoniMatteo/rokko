@@ -1,4 +1,5 @@
 export function loadError(code) {
+  if (code === 'crashed') return { title: 'This application stopped unexpectedly', message: 'Reload the service to recover. Your saved login stays on this device.' };
   if (code === -106) return { title: 'You appear to be offline', message: 'Check your connection, then try again.' };
   if (code === -105 || code === -137) return { title: 'Website not found', message: 'Check the website address or try again later.' };
   if (code === -7 || code === -118) return { title: 'The website took too long', message: 'The service may be busy. Try again in a moment.' };

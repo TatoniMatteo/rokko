@@ -1,4 +1,7 @@
 import { app, Menu, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification } from 'electron';
+import { nativeViewBounds } from './lifecycle/view-bounds.mjs';
+import { restoreWindow, createTray } from './lifecycle/desktop';
+import { isShellSender } from './security/shell-sender.mjs';
 import appIcon from '../../assets/brand/rokko-dark-icon.png?asset';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
@@ -19,6 +22,10 @@ import { readMetadata } from './import/rambox-mcp.mjs';
 import { parseRamboxMetadata, planRamboxImport } from '../shared/import/rambox.mjs';
 
 import { defaultPreferences, validatePreferences, dockApps, moveApp, languageList } from '../shared/preferences/preferences.mjs';
+
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.quit();
+if (process.platform === 'linux') app.setDesktopName('rokko.desktop');
 
 const preferencesPath = (): string => join(app.getPath('userData'), 'rokko-preferences.json');
 let preferences = defaultPreferences();
@@ -41,6 +48,12 @@ const emptyData = (): AppData => ({
 let data: AppData = emptyData();
 let win: BaseWindow | null = null;
 let shellView: WebContentsView | null = null;
+let tray: ReturnType<typeof createTray> | undefined;
+let quitting = false;
+let shutdown: Promise<void> | undefined;
+const closingViews = new Map<string, Promise<void>>();
+app.on('second-instance', () => restoreWindow(win));
+app.on('activate', () => restoreWindow(win));
 const views = new Map<string, WebContentsView>();
 const appStates = new Map<string, AppLoadState>();
 let activeAppId: string | null = null;
@@ -113,7 +126,7 @@ function installNavigation(contents: Electron.WebContents): void {
   });
 }
 function requireShell(event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): void {
-  if (!shellView || event.sender !== shellView.webContents) throw new Error('Unauthorized renderer');
+  if (!isShellSender(event, shellView?.webContents)) throw new Error('Unauthorized renderer');
 }
 function selectedApp(): WebApp | undefined { return data.apps.find(a => a.id === activeAppId); }
 function detachViews(): void {
@@ -154,6 +167,9 @@ function ensureView(appInfo: WebApp): WebContentsView {
       }).catch(() => {});
     });
     views.set(appInfo.id, view);
+    remote.on('render-process-gone', (_event, details) => {
+      if (details.reason !== 'clean-exit') report('failed', undefined, 'crashed');
+    });
     const report = (status: AppLoadState['status'], url = appStates.get(appInfo.id)?.url ?? appInfo.url,
       error?: AppLoadState['error']): void => {
       if (views.get(appInfo.id)?.webContents !== remote || remote.isDestroyed()) return;
@@ -236,7 +252,14 @@ function isSafeHttpsUrl(url: string): boolean {
   catch { return false; }
 }
 const testNotifications = new Map<string, DesktopNotification>();
-async function closeView(id: string): Promise<void> {
+function closeView(id: string): Promise<void> {
+  const pending = closingViews.get(id);
+  if (pending) return pending;
+  const task = disposeView(id).finally(() => closingViews.delete(id));
+  closingViews.set(id, task);
+  return task;
+}
+async function disposeView(id: string): Promise<void> {
   await persistentNotifications.closeApp(id);
   testNotifications.get(id)?.close();
   testNotifications.delete(id);
@@ -251,11 +274,16 @@ async function closeView(id: string): Promise<void> {
   const origin = notificationOrigin(appStates.get(id)?.url ?? view.webContents.getURL());
   const sameOrigin = peers.some(([otherId, other]) =>
     notificationOrigin(appStates.get(otherId)?.url ?? other.webContents.getURL()) === origin);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    if (!peers.length) await stopServiceWorkers(view.webContents);
-    else if (origin && !sameOrigin) await stopServiceWorkers(view.webContents, [origin]);
+    const cleanup = !peers.length ? stopServiceWorkers(view.webContents)
+      : origin && !sameOrigin ? stopServiceWorkers(view.webContents, [origin]) : Promise.resolve();
+    await Promise.race([cleanup, new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Service cleanup timed out')), 5000);
+    })]);
   }
   finally {
+    clearTimeout(timer);
     if (!view.webContents.isDestroyed()) view.webContents.close();
     views.delete(id);
     appStates.delete(id);
@@ -335,6 +363,7 @@ function registerIpc(): void {
     const ids = new Set(['global', ...data.workspaces.map(w => w.id)]);
     if ([...next.cardOrder, ...next.hiddenWorkspaces].some(id => !ids.has(id))) throw new Error('Invalid layout');
     savePreferences(next);
+    tray?.refresh();
     if (!dockApps(data, preferences).some(a => a.id === activeAppId)) activeAppId = null;
     redrawView(); return snapshot();
   });
@@ -457,17 +486,18 @@ function registerIpc(): void {
     return loadServiceIcon(url);
   });
   ipcMain.on('rokko:overlay' , (event, open: unknown) => {
-    requireShell(event);
+    if (!isShellSender(event, shellView?.webContents)) return;
     if (typeof open !== 'boolean') return;
     overlayOpen = open;
     redrawView();
   });
   ipcMain.on('rokko:bounds', (event, value: unknown) => {
-    requireShell(event);
+    if (!isShellSender(event, shellView?.webContents)) return;
     if (!win) return;
     const { width, height } = shellView!.getBounds();
-    if (!validBounds(value, width, height)) return;
-    bounds = value as ViewBounds;
+    const next = nativeViewBounds(value, width, height, shellView!.webContents.getZoomFactor());
+    if (!next) return;
+    bounds = next;
     const view = activeAppId ? views.get(activeAppId) : undefined;
     if (view) view.setBounds(bounds);
   });
@@ -520,7 +550,7 @@ async function createWindow(): Promise<void> {
   win.show();
   setImmediate(syncNotificationViews);
 }
-app.whenReady().then(async () => {
+if (primaryInstance) app.whenReady().then(async () => {
   loadData();
   persistentNotifications = new PersistentNotifications({
     app: id => data.apps.find(service => service.id === id),
@@ -540,5 +570,16 @@ app.whenReady().then(async () => {
     }
   });
   registerIpc(); await createWindow();
-}).catch(console.error);
+  tray = createTray(appIcon, () => win, () => preferences.language);
+}).catch(error => { console.error(error); app.quit(); });
+app.on('before-quit', event => {
+  if (quitting) return;
+  event.preventDefault();
+  if (shutdown) return;
+  tray?.destroy();
+  shutdown = Promise.allSettled([...views.keys()].map(closeView)).then(() => {
+    quitting = true;
+    app.quit();
+  });
+});
 app.on('window-all-closed', () => app.quit());
