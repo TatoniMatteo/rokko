@@ -31,7 +31,9 @@ jobs:
           node --input-type=module <<'JS'
           import { writeFileSync } from 'node:fs';
           import { electronExecutable, profileForExecutable } from './scripts/linux/apparmor.mjs';
-          writeFileSync('.codex/tasks/ci-smoke/electron.apparmor', profileForExecutable(electronExecutable(process.cwd())));
+          import { ensureElectronInstalled } from './scripts/linux/electron-install.mjs';
+          const executable = ensureElectronInstalled(process.cwd(), { electronExecutable });
+          writeFileSync('.codex/tasks/ci-smoke/electron.apparmor', profileForExecutable(executable));
           JS
           if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ]; then
             sudo apparmor_parser --replace .codex/tasks/ci-smoke/electron.apparmor
