@@ -41,16 +41,17 @@ recupero della configurazione corrotta restano in #47/#35.
 
 ## Persistenza: decisione e migrazione
 
-Oggi registro e preferenze sono JSON versione 1 con scrittura temporanea e rename;
-credenziali e cookie restano nelle sessioni Chromium. SQLite non è usato dal prodotto.
+Il formato legacy di registro e preferenze è JSON versione 1;
+credenziali e cookie restano nelle sessioni Chromium. Dalla fase 2 il main usa SQLite integrato,
+con importazione del JSON originale, backup privato e schema versionato con checksum.
 
-Per #22 è scelto SQLite tramite `node:sqlite` già incluso in Electron, anziché un addon
+Per #22 si usa SQLite tramite `node:sqlite` già incluso in Electron, anziché un addon
 nativo o un database nel renderer. Provato nel main Electron 45.3.0 / Node 24.22.2:
 SQLite 3.53.4, vincoli FK, rollback e riapertura persistente riusciti con dati sintetici.
 L’API Node 24 è ancora release candidate: mantenere l’accesso confinato nel main e
-ripetere la prova a ogni cambio runtime. Nessuna nuova dipendenza o migrazione avviene qui.
+ripetere la prova a ogni cambio runtime. Non sono necessarie dipendenze native esterne.
 
-La migrazione deve:
+La migrazione e il recupero rispettano questi vincoli:
 
 1. Validare interamente JSON e preferenze esistenti; file corrotti richiedono recupero,
    non sostituzione silenziosa con stato vuoto (#35).
@@ -84,6 +85,23 @@ il recupero. Nessuna promessa di recupero completo finché #35/#47 non sono veri
 
 Rimandare ogni decisione lascerebbe i task dati senza vincoli; riscrivere subito il prodotto
 creerebbe invece migrazioni premature. Si conserva l’implementazione funzionante e si fissa
-il percorso di #22. JSON resta fino alla migrazione verificata. SQLite integrato evita rebuild
+il percorso di #22. Il JSON originale rimane intatto; l’esportazione per il downgrade parte dai dati SQLite correnti. SQLite integrato evita rebuild
 ABI di addon; l’API va comunque verificata sul runtime incluso, non sul Node di sviluppo.
 Nessun nuovo ORM, Zod, Zustand, updater, backend, trasporto Push o supporto altri OS è deliberato.
+
+## Persistenza operativa
+
+`main/storage` separa validazione, schema e gestione dei file. SQLite conserva workspace e servizi
+in ordine esplicito, riferimenti FK, preferenze e ultimo contesto. Le viste usano lo stato in memoria:
+il cambio applicazione non interroga il DB; il contesto viene salvato con debounce di 150 ms e flush
+alla chiusura. Modifiche al registro e preferenze usano transazioni e backup della revisione precedente.
+
+Un profilo illeggibile mostra una pagina di recupero: ripristino della revisione precedente o nuova
+configurazione con archivio dei file precedenti. Nessuna cancellazione delle partizioni Chromium.
+Un formato futuro blocca ogni ripristino/sovrascrittura. La schermata impostazioni esporta i JSON
+correnti in una nuova cartella privata, senza cookie: farlo prima di tornare a una versione precedente.
+Non sostituire un database attivo con copie del file mentre Rokko è aperto.
+
+Prova riproducibile: `pnpm qa:profile --executable node_modules/electron/dist/electron` dopo il setup
+Linux e la build. Usa esclusivamente account sintetici e un profilo temporaneo; non verifica login
+reali o Web Push. Migrazione/fault injection, schema futuro e rollback hanno test su SQLite reale.

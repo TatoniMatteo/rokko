@@ -1,6 +1,6 @@
 /** Pure validation shared by the Electron main process and dependency-free tests. */
 export function normalizeHttpsUrl(value) {
-  if (typeof value !== 'string' || value.length > 2048) throw new Error('URL non valido');
+  if (typeof value !== 'string' || value.length > 2048 || [...value].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) throw new Error('URL non valido');
   const trimmed = value.trim();
   if (!trimmed) throw new Error('Inserisci un URL');
   const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
@@ -15,6 +15,7 @@ export function normalizeHttpsUrl(value) {
 export function validTitle(value) {
   if (typeof value !== 'string') throw new Error('Nome non valido');
   const title = value.trim();
+  if ([...title].some(char => char.length === 1 && char.charCodeAt(0) >= 0xd800 && char.charCodeAt(0) <= 0xdfff)) throw new Error('Nome non valido');
   if (!title || title.length > 48) throw new Error('Il nome deve contenere da 1 a 48 caratteri');
   return title;
 }

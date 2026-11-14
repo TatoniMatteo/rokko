@@ -17,7 +17,10 @@ export interface AppData {
   apps: WebApp[];
   selectedWorkspaceId: string;
 }
+export interface ProfileRecovery { kind: 'future' | 'legacy' | 'corrupt'; canRestore: boolean }
 export interface AppSnapshot {
+  recovery?: ProfileRecovery;
+  profileNotices?: string[];
   data: AppData;
   activeAppId: string | null;
   appStates?: Record<string, AppLoadState>;
@@ -35,6 +38,8 @@ export interface ViewBounds { x: number; y: number; width: number; height: numbe
 export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }
 export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show' | 'controls' | 'remove' | 'reorder';
 export interface RokkoAPI {
+  recoverProfile(action: 'restore' | 'new'): Promise<AppSnapshot>;
+  exportProfile(): Promise<boolean>;
   onServiceIcon(callback: (url: string, icon: string) => void): () => void;
   showContextMenu(input: ContextMenuRequest): Promise<ContextMenuAction | null>;
   setPreferences(input: Preferences): Promise<AppSnapshot>;

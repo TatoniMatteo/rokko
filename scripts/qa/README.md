@@ -15,3 +15,16 @@ La prova serve fixture HTTPS sintetiche attraverso CDP, con rete Chromium dirett
 Il comando fallisce se supera un budget o lascia processi dei servizi. Scrive `measurements.json` con ambiente, commit/working copy, campioni e risultati. Il tempo di cambio misura l’IPC, non il primo frame presentato; i risultati delle fixture non certificano prestazioni, login o Web Push di servizi reali. Ripetere sullo stesso ambiente a carico comparabile, senza modificare i budget per nascondere una regressione.
 
 L’avvio misura un nuovo processo con cache del sistema non svuotata: non rappresenta un avvio a freddo del PC. I checkpoint con 5/20 servizi includono il dock aggiornato e le rispettive icone. Le soglie non sospendono servizi e non modificano timer o priorità delle applicazioni.
+
+
+## Migrazione, sessioni e recupero
+
+```sh
+pnpm qa:profile --executable node_modules/electron/dist/electron
+```
+
+Dopo setup Linux e build, il comando verifica migrazione JSON, catalogo senza aprire servizi,
+cookie persistenti privati/condivisi/globali, trasferimenti, ordine, policy HTTPS, esportazione,
+riavvio, DB corrotto e rifiuto di formati futuri. Usa una entry di test esclusa dal pacchetto;
+la cartella nativa di esportazione viene simulata dentro il profilo temporaneo. Non usa account
+personali, non modifica partizioni reali e registra la versione effettiva del runtime.

@@ -8,6 +8,7 @@ export function contrast(a, b) {
   return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
 }
 export function themeTokens(seed, dark) {
+  if (typeof seed !== 'string' || !/^#[\da-f]{6}$/i.test(seed)) seed = '#245dc5';
   const bg = mix(seed, dark ? '#080d16' : '#ffffff', dark ? .94 : .96);
   const panel = mix(seed, dark ? '#18212f' : '#ffffff', dark ? .94 : .995);
   const panel2 = mix(seed, dark ? '#243145' : '#ffffff', dark ? .92 : .92);

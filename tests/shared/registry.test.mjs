@@ -45,3 +45,11 @@ test('workspace-local ordering', () => {
   assert.throws(() => reorderApp(state(), '1', 0));
   assert.throws(() => reorderApp(state(), 'missing', 1));
 });
+
+test('registry rejects unexpected fields', () => {
+  for(const extra of [{partition:'persist:rokko-other'},{id:'override'},{script:'alert(1)'}]) {
+    assert.throws(()=>appInput(state(),{name:'Example',url:'https://example.com/',...extra}));
+  }
+  assert.throws(()=>appInput(state(),[]));
+  assert.throws(()=>appInput(state(),{name:'\ud800',url:'https://example.com/'}));
+});

@@ -1,15 +1,16 @@
-import { app, Menu, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification } from 'electron';
+import { app, Menu, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification, dialog } from 'electron';
 import { nativeViewBounds } from './lifecycle/view-bounds.mjs';
 import { restoreWindow, createTray } from './lifecycle/desktop';
 import { isShellSender } from './security/shell-sender.mjs';
 import appIcon from '../../assets/brand/rokko-dark-icon.png?asset';
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { ProfileStore, emptyProfile, recoveryInfo, recoverProfile } from './storage/profile-store.mjs';
+import type { RecoveryKind } from './storage/profile-store.mjs';
 import { join } from 'node:path';
 import type { ContextMenuAction, AppData, AppSnapshot, AppLoadState, ViewBounds, WebApp } from '../shared/contracts/model';
-import { notificationAllowed, notificationOrigin, validNotificationGrant } from '../shared/notifications/notifications.mjs';
+import { notificationAllowed, notificationOrigin } from '../shared/notifications/notifications.mjs';
 import { serviceCatalog } from '../shared/services/service-catalog.mjs';
-import { fetchFavicon, validIcon } from '../shared/services/service-icons.mjs';
+import { fetchFavicon } from '../shared/services/service-icons.mjs';
 import { appInput, updateApp, renameWorkspace, removeWorkspace, reorderApp } from '../shared/apps/registry.mjs';
 import { normalizeHttpsUrl, validTitle, validBounds } from '../shared/security/validation.mjs';
 import { stopServiceWorkers } from './lifecycle/worker-lifecycle.mjs';
@@ -21,31 +22,35 @@ import { contextMenuItems } from './navigation/context-menu.mjs';
 import { readMetadata } from './import/rambox-mcp.mjs';
 import { parseRamboxMetadata, planRamboxImport } from '../shared/import/rambox.mjs';
 
-import { defaultPreferences, validatePreferences, dockApps, moveApp, languageList } from '../shared/preferences/preferences.mjs';
+import { validatePreferences, dockApps, moveApp, languageList } from '../shared/preferences/preferences.mjs';
 
 const primaryInstance = app.requestSingleInstanceLock();
 if (!primaryInstance) app.quit();
 if (process.platform === 'linux') app.setDesktopName('rokko.desktop');
 
-const preferencesPath = (): string => join(app.getPath('userData'), 'rokko-preferences.json');
-let preferences = defaultPreferences();
-try { preferences = validatePreferences(JSON.parse(readFileSync(preferencesPath(), 'utf8'))); } catch { /* Compatible defaults. */ }
+const profileDirectory = app.getPath('userData');
+let profileStore: ProfileStore | undefined;
+let recovery: ReturnType<typeof recoveryInfo> | undefined;
+let initial = emptyProfile();
+try {
+  if (primaryInstance) { profileStore = new ProfileStore(profileDirectory); initial = profileStore.read(); }
+} catch (error) {
+  const kind = (error as { kind?: RecoveryKind }).kind ?? 'corrupt';
+  recovery = recoveryInfo(profileDirectory, kind);
+}
+let preferences = initial.preferences;
+let data: AppData = initial.data;
+let profileNotices = initial.notices;
 const browserLanguage = preferences.language;
 app.commandLine.appendSwitch('lang', browserLanguage === 'it' ? 'it-IT' : 'en-US');
-function savePreferences(next: typeof preferences): void {
-  mkdirSync(app.getPath('userData'), { recursive: true });
-  writeFileSync(preferencesPath() + '.tmp', JSON.stringify(next), { mode: 0o600 });
-  renameSync(preferencesPath() + '.tmp', preferencesPath());
-  preferences = next;
+function activeStore(): ProfileStore {
+  if (!profileStore) throw new Error('Recover the configuration before continuing');
+  return profileStore;
 }
-
-const emptyData = (): AppData => ({
-  version: 1,
-  workspaces: [{ id: 'personal', name: 'Personal' }],
-  apps: [],
-  selectedWorkspaceId: 'personal'
-});
-let data: AppData = emptyData();
+function savePreferences(next: typeof preferences): void {
+  try { activeStore().savePreferences(next); preferences = next; }
+  catch { throw new Error('Could not save configuration. Your previous data is unchanged.'); }
+}
 let win: BaseWindow | null = null;
 let shellView: WebContentsView | null = null;
 let tray: ReturnType<typeof createTray> | undefined;
@@ -56,48 +61,31 @@ app.on('second-instance', () => restoreWindow(win));
 app.on('activate', () => restoreWindow(win));
 const views = new Map<string, WebContentsView>();
 const appStates = new Map<string, AppLoadState>();
-let activeAppId: string | null = null;
+let activeAppId: string | null = initial.activeAppId;
 let overlayOpen = false;
 let bounds: ViewBounds = { x: 238, y: 106, width: 942, height: 550 };
 let persistentNotifications: PersistentNotifications;
 const permissionSessions = new WeakSet<Electron.Session>();
 const accountWindows = new Map<string, Set<Electron.BrowserWindow>>();
 
-function statePath(): string { return join(app.getPath('userData'), 'rokko-state.json'); }
-function loadData(): void {
-  try {
-    const value: unknown = JSON.parse(readFileSync(statePath(), 'utf8'));
-    if (isData(value)) data = value;
-  } catch { /* Initial launch, or invalid state: keep safe defaults. */ }
-}
-function isData(value: unknown): value is AppData {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Partial<AppData>;
-  return v.version === 1 && Array.isArray(v.workspaces) && Array.isArray(v.apps) &&
-    typeof v.selectedWorkspaceId === 'string' &&
-    v.workspaces.every(w => typeof w?.id === 'string' && typeof w?.name === 'string') &&
-    v.apps.every(a => typeof a?.id === 'string' && typeof a?.name === 'string' &&
-      typeof a?.url === 'string' && (a?.workspaceId === null || typeof a?.workspaceId === 'string') &&
-      typeof a?.partition === 'string' && a.partition.startsWith('persist:rokko-') &&
-      isSafeHttps(a.url) && isValidStoredIcon(a.icon) && isValidStoredGrant(a.notificationOrigin, a.url));
-}
-function isValidStoredGrant(value: unknown, url: string): boolean {
-  try { validNotificationGrant(value, url); return true; } catch { return false; }
-}
-function isValidStoredIcon(value: unknown): boolean {
-  try { validIcon(value); return true; } catch { return false; }
-}
-function isSafeHttps(value: string): boolean {
-  try { return normalizeHttpsUrl(value) === value; } catch { return false; }
-}
 function saveData(value: AppData = data): void {
-  const file = statePath();
-  mkdirSync(app.getPath('userData'), { recursive: true });
-  const tmp = `${file}.tmp`;
-  writeFileSync(tmp, JSON.stringify(value, null, 2), { mode: 0o600 });
-  renameSync(tmp, file);
+  try { preferences = activeStore().saveData(value, activeAppId).preferences; }
+  catch { throw new Error('Could not save configuration. Your previous data is unchanged.'); }
 }
-function snapshot(): AppSnapshot { return { data, activeAppId, appStates: Object.fromEntries(appStates), preferences, browserLanguage }; }
+let contextTimer: ReturnType<typeof setTimeout> | undefined;
+function flushContext(): void {
+  clearTimeout(contextTimer);
+  if (!profileStore) return;
+  profileStore.saveContext(data.selectedWorkspaceId, activeAppId);
+}
+function scheduleContext(): void {
+  clearTimeout(contextTimer);
+  contextTimer = setTimeout(() => {
+    try { flushContext(); }
+    catch { profileNotices = ['Could not save the last workspace. Your services are unchanged.']; shellView?.webContents.send('rokko:snapshot-changed', snapshot()); }
+  }, 150);
+}
+function snapshot(): AppSnapshot { return { data, activeAppId, appStates: Object.fromEntries(appStates), preferences, browserLanguage, recovery, profileNotices }; }
 function updateAppState(id: string, state: AppLoadState): void {
   if (!views.has(id)) return;
   const previous = appStates.get(id);
@@ -107,7 +95,7 @@ function updateAppState(id: string, state: AppLoadState): void {
 }
 function installNavigation(contents: Electron.WebContents): void {
   contents.on('before-input-event', (event, input) => {
-    if (!shellView || (contents !== shellView.webContents &&
+    if (shutdown || !shellView || (contents !== shellView.webContents &&
         contents !== (activeAppId ? views.get(activeAppId)?.webContents : undefined))) return;
     const target = shortcutTarget(data, activeAppId, input, overlayOpen, preferences);
     if (!target) return;
@@ -115,7 +103,7 @@ function installNavigation(contents: Electron.WebContents): void {
     try {
       if (target.workspaceId !== data.selectedWorkspaceId) {
         const next = { ...data, selectedWorkspaceId: target.workspaceId };
-        saveData(next); data = next;
+        data = next;
       }
       setActive(target.appId);
       shellView.webContents.send('rokko:snapshot-changed', snapshot());
@@ -127,6 +115,7 @@ function installNavigation(contents: Electron.WebContents): void {
 }
 function requireShell(event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): void {
   if (!isShellSender(event, shellView?.webContents)) throw new Error('Unauthorized renderer');
+  if (shutdown) throw new Error('Rokko is closing');
 }
 function selectedApp(): WebApp | undefined { return data.apps.find(a => a.id === activeAppId); }
 function detachViews(): void {
@@ -230,12 +219,13 @@ function ensureView(appInfo: WebApp): WebContentsView {
   return view;
 }
 function syncNotificationViews(): void {
+  if (shutdown) return;
   for (const service of data.apps) {
     if (notificationAllowed(service, 'notifications', service.url)) ensureView(service);
   }
 }
 function redrawView(): void {
-  if (!win || !shellView) return;
+  if (shutdown || !win || !shellView) return;
   detachViews();
   const appInfo = selectedApp();
   if (!appInfo || overlayOpen) return;
@@ -296,9 +286,10 @@ function setActive(id: string | null): AppSnapshot {
   }
   const service = data.apps.find(a => a.id === id);
   if (service?.workspaceId && service.workspaceId !== data.selectedWorkspaceId) {
-    const next = { ...data, selectedWorkspaceId: service.workspaceId }; saveData(next); data = next;
+    const next = { ...data, selectedWorkspaceId: service.workspaceId }; data = next;
   }
   activeAppId = id;
+  scheduleContext();
   redrawView();
   return snapshot();
 }
@@ -371,6 +362,34 @@ function registerIpc(): void {
     requireShell(event); return commitRegistry(moveApp(data, id, target, after));
   });
   ipcMain.handle('rokko:restart', event => { requireShell(event); app.relaunch(); app.quit(); });
+  ipcMain.handle('rokko:recover-profile', (event, action: unknown) => {
+    requireShell(event);
+    if (!recovery || (action !== 'restore' && action !== 'new')) throw new Error('Invalid recovery action');
+    try { profileStore = recoverProfile(profileDirectory, action, recovery.kind); }
+    catch (error) {
+      if ((error as { kind?: string }).kind === 'future') {
+        recovery = recoveryInfo(profileDirectory, 'future');
+        shellView?.webContents.send('rokko:snapshot-changed', snapshot());
+      }
+      throw new Error('Could not complete recovery. Your previous files are preserved.');
+    }
+    const restored = profileStore.read();
+    data = restored.data; preferences = restored.preferences; activeAppId = restored.activeAppId;
+    profileNotices = restored.notices;
+    if (browserLanguage !== preferences.language) profileNotices.push('Restart Rokko to apply the restored language to websites.');
+    recovery = undefined;
+    tray?.refresh(); syncNotificationViews(); redrawView();
+    return snapshot();
+  });
+  ipcMain.handle('rokko:export-profile', async event => {
+    requireShell(event);
+    const store = activeStore();
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'],
+      title: preferences.language === 'it' ? 'Esporta configurazione' : 'Export configuration' });
+    if (result.canceled || !result.filePaths[0]) return false;
+    try { flushContext(); store.exportLegacy(result.filePaths[0]); return true; }
+    catch { throw new Error('Could not export the configuration. Your saved data is unchanged.'); }
+  });
   let readingRambox = false;
   ipcMain.handle('rokko:rambox-read', async (event, port: unknown, token: unknown) => {
     requireShell(event);
@@ -407,10 +426,9 @@ function registerIpc(): void {
     requireShell(event);
     if (data.workspaces.length >= 30) throw new Error('Maximum number of workspaces reached');
     const id = randomUUID();
-    data.workspaces.push({ id, name: validTitle(name) });
-    data.selectedWorkspaceId = id;
-    activeAppId = null;
-    saveData(); redrawView();
+    const next = { ...data, workspaces: [...data.workspaces, { id, name: validTitle(name) }], selectedWorkspaceId: id };
+    saveData(next); data = next; activeAppId = null;
+    scheduleContext(); redrawView();
     return snapshot();
   });
   ipcMain.handle('rokko:select-workspace', (event, id: unknown) => {
@@ -418,7 +436,7 @@ function registerIpc(): void {
     if (typeof id !== 'string' || !data.workspaces.some(w => w.id === id)) throw new Error('Unknown workspace');
     data.selectedWorkspaceId = id;
     if (selectedApp()?.workspaceId !== null) activeAppId = null;
-    saveData(); redrawView(); return snapshot();
+    scheduleContext(); redrawView(); return snapshot();
   });
   ipcMain.handle('rokko:select-app', (event, id: unknown) => {
     requireShell(event);
@@ -551,12 +569,12 @@ async function createWindow(): Promise<void> {
   setImmediate(syncNotificationViews);
 }
 if (primaryInstance) app.whenReady().then(async () => {
-  loadData();
   persistentNotifications = new PersistentNotifications({
     app: id => data.apps.find(service => service.id === id),
     view: id => views.get(id)?.webContents,
     icon: appIcon,
     activate: id => {
+      if (shutdown) return;
       const service = data.apps.find(service => service.id === id);
       if (!service) return;
       if (service.workspaceId !== null) data.selectedWorkspaceId = service.workspaceId;
@@ -564,7 +582,7 @@ if (primaryInstance) app.whenReady().then(async () => {
         savePreferences({ ...preferences, hiddenWorkspaces: preferences.hiddenWorkspaces.filter(id => id !== service.workspaceId) });
       }
       overlayOpen = false;
-      saveData(); setActive(id);
+      setActive(id);
       win?.show(); win?.focus();
       shellView?.webContents.send('rokko:snapshot-changed', snapshot());
     }
@@ -577,7 +595,10 @@ app.on('before-quit', event => {
   event.preventDefault();
   if (shutdown) return;
   tray?.destroy();
+  try { flushContext(); } catch { console.error('[Rokko] Could not save the last workspace.'); }
   shutdown = Promise.allSettled([...views.keys()].map(closeView)).then(() => {
+    clearTimeout(contextTimer);
+    profileStore?.close();
     quitting = true;
     app.quit();
   });

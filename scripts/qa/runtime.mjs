@@ -147,7 +147,9 @@ export async function createRuntime(defaultOutput) {
       }
       let ready = false;
       for (let i = 0; i < 50; i++) {
-        ready = await evaluate('Boolean(window.rokko && document.querySelector(".welcome"))');
+        ready = await evaluate(
+          'Boolean(window.rokko && document.querySelector(".app-shell") && [...document.images].some(i=>i.alt==="Rokko" && i.complete && i.naturalWidth>0))',
+        );
         if (ready) break;
         await delay(100);
       }

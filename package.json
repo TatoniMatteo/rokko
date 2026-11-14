@@ -26,7 +26,8 @@
     "design:sync": "node scripts/design/figcraft.mjs",
     "design:watch": "node scripts/design/figcraft.mjs --watch",
     "lint": "oxlint --deny-warnings src scripts tests build electron.vite.config.ts",
-    "qa:resources": "node scripts/qa/resources.mjs"
+    "qa:resources": "node scripts/qa/resources.mjs",
+    "qa:profile": "node scripts/qa/profile.mjs --app scripts/qa/profile-entry.cjs"
   },
   "dependencies": {
     "react": "19.3.1",

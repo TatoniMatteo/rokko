@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readDatabase } from '../../src/main/storage/database.mjs';
 import { createRuntime } from '../qa/runtime.mjs';
 
 async function smoke() {
@@ -35,7 +36,7 @@ async function smoke() {
         snapshot.data.workspaces.find((w) => w.id === snapshot.data.selectedWorkspaceId)?.name,
         'Package QA',
       );
-      const persisted = JSON.parse(await readFile(join(config, 'rokko/rokko-state.json'), 'utf8'));
+      const persisted = readDatabase(join(config, 'rokko/rokko.sqlite')).data;
       assert.equal(persisted.apps.length, 0);
       assert.equal(persisted.workspaces.length, 2);
       await restored.screenshot();

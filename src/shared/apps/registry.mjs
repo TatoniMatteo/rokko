@@ -4,7 +4,8 @@ import { validNotificationGrant } from '../notifications/notifications.mjs';
 import { validIcon } from '../services/service-icons.mjs';
 
 export function appInput(data, input) {
-  if (!input || typeof input !== 'object') throw new Error('Dati applicazione non validi');
+  if (!input || typeof input !== 'object' || Array.isArray(input) ||
+      Object.keys(input).some(key => !['name','url','workspaceId','icon','notificationOrigin','shareWorkspaceSession'].includes(key))) throw new Error('Dati applicazione non validi');
   const workspaceId = input.workspaceId === undefined ? data.selectedWorkspaceId : input.workspaceId;
   if (input.shareWorkspaceSession !== undefined && typeof input.shareWorkspaceSession !== 'boolean') throw new Error('Sessione non valida');
   if (workspaceId === null && input.shareWorkspaceSession) throw new Error('I servizi globali usano sessioni separate');
