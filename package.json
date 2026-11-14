@@ -25,7 +25,8 @@
     "smoke:prepare": "node scripts/release/prepare-smoke.mjs",
     "design:sync": "node scripts/design/figcraft.mjs",
     "design:watch": "node scripts/design/figcraft.mjs --watch",
-    "lint": "oxlint --deny-warnings src scripts tests build electron.vite.config.ts"
+    "lint": "oxlint --deny-warnings src scripts tests build electron.vite.config.ts",
+    "qa:resources": "node scripts/qa/resources.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
