@@ -33,7 +33,7 @@ export interface AppLoadState {
 }
 export interface ViewBounds { x: number; y: number; width: number; height: number }
 export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }
-export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show';
+export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show' | 'controls' | 'remove' | 'reorder';
 export interface RokkoAPI {
   onServiceIcon(callback: (url: string, icon: string) => void): () => void;
   showContextMenu(input: ContextMenuRequest): Promise<ContextMenuAction | null>;

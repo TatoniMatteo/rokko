@@ -1,3 +1,4 @@
+import { Button, TextField } from '../components/ui';
 import { useI18n, errorMessage } from '../preferences/i18n';
 import { useState } from 'react';
 import type { AppData, AppSnapshot } from '../../shared/contracts/model';
@@ -35,25 +36,25 @@ export function RamboxImportPage({ data, onImported }: { data: AppData; onImport
     } catch { setError(t("Import failed. Check names, HTTPS URLs, destinations and the 100-application limit. No partial import was saved.")); }
     finally { setBusy(false); }
   }
-  return <div className="settings-page"><div className="page-heading"><div>
+  return <div className="settings-page configuration-page"><div className="page-heading"><div>
     <h1>{t("Import from Rambox")}</h1><p>{t("Bring your applications over. Your accounts stay in Rambox.")}</p></div></div>
-    {imported !== null && <section className="settings-card" role="status"><h2>{imported}{t("applications imported")}</h2>
+    {imported !== null && <section className="settings-card" role="status"><h2>{t(imported === 1 ? '{count} application imported' : '{count} applications imported', { count: imported })}</h2>
       <p>{t("Open each service when you are ready and sign in. Notifications require a new permission.")}</p>
       <p className="page-note">{t("Nothing was opened automatically. Repeating the import creates additional accounts.")}</p></section>}
     {error && <p className="page-note" role="alert">{error}</p>}
     {!loaded ? <section className="settings-card"><h2>{t("Connect to Rambox")}</h2>
       <p className="page-note">{t("In Rambox, open Settings → Advanced and temporarily enable Model Context Protocol. Paste its temporary token below. Only the service list is read; cookies, passwords and sessions stay in Rambox.")}</p>
-      <form className="settings-form" onSubmit={async event => {
+      <form className="settings-form import-connect" onSubmit={async event => {
         event.preventDefault(); setBusy(true); setError('');
         try { preview(await window.rokko.readRambox(Number(port), token)); }
         catch { setError(t("Could not read services. Check the local port and token in Rambox.")); }
         finally { setToken(''); setBusy(false); }
       }}>
-        <label htmlFor="rambox-port">{t("Local port")}</label><input id="rambox-port" type="number" min="1024" max="65535"
+        <TextField label={t("Local port")} id="rambox-port" type="number" min="1024" max="65535"
           value={port} disabled={busy} onChange={e => setPort(e.target.value)} required/>
-        <label htmlFor="rambox-token">{t("Temporary MCP token")}</label><input id="rambox-token" type="password" autoComplete="off"
+        <TextField label={t("Temporary MCP token")} id="rambox-token" type="password" autoComplete="off"
           value={token} disabled={busy} maxLength={1024} onChange={e => setToken(e.target.value)} required/>
-        <button className="primary" disabled={busy}>{busy ? t("Reading…") : t("Read services")}</button>
+        <Button type="submit" className="primary" aria-busy={busy} disabled={busy}>{busy ? t("Reading") : t("Read services")}</Button>
       </form><p className="page-note">{t("The token is used in memory for this connection and is never saved by Rokko. Disable MCP in Rambox as soon as the preview appears.")}</p>
       <label htmlFor="rambox-file">{t("Or open a saved Rokko service list")}</label><input id="rambox-file" type="file"
         accept="application/json,.json" disabled={busy} onChange={async e => {
@@ -66,7 +67,7 @@ export function RamboxImportPage({ data, onImported }: { data: AppData; onImport
           finally { e.target.value = ''; setBusy(false); }
         }}/><p className="page-note">{t("Native Rambox export files are not supported by this reader.")}</p>
     </section> : <><section className="settings-card"><h2>{t("Choose applications and destinations")}</h2>
-      <p className="page-note" role="status">{rows.length}{t("services found. Disable MCP in Rambox now. This source provides services without workspace names: choose a destination below.")}</p>
+      <p className="page-note" role="status">{t(rows.length === 1 ? '{count} service' : '{count} services', { count: rows.length })}{' · '}{t('Disable MCP in Rambox now. This source provides services without workspace names: choose a destination below.')}</p>
       <label htmlFor="import-destination">{t("Workspace for all services")}</label><select id="import-destination" value={destination}
         disabled={busy} onChange={e => { setDestination(e.target.value);
           setRows(current => current.map(row => ({ ...row, destination: e.target.value }))); }}>{options}</select>
@@ -76,21 +77,24 @@ export function RamboxImportPage({ data, onImported }: { data: AppData; onImport
         onClick={() => setRows(current => current.map(row => ({ ...row, selected: true })))}>{t("Select all")}</button>
         <button className="text-button" disabled={busy}
           onClick={() => setRows(current => current.map(row => ({ ...row, selected: false })))}>{t("Select none")}</button></div>
-    </section><form className="settings-form" onSubmit={e => { e.preventDefault(); void apply(); }}>
-      {rows.map((row, index) => <section className="settings-card" key={row.sourceId}>
-        <label className="notification-toggle"><input type="checkbox" checked={row.selected} disabled={busy}
-          onChange={e => patch(index, { selected: e.target.checked })}/><span>{t("Import")}{' '}{row.name || t('service')}</span></label>
-        <label htmlFor={`import-name-${index}`}>{t("Application name")}</label><input id={`import-name-${index}`} value={row.name}
-          required={row.selected} maxLength={48} disabled={busy || !row.selected} onChange={e => patch(index, { name: e.target.value })}/>
-        <label htmlFor={`import-url-${index}`}>{t("Website URL (HTTPS)")}</label><input id={`import-url-${index}`} value={row.url}
-          required={row.selected} maxLength={2048} disabled={busy || !row.selected} onChange={e => patch(index, { url: e.target.value })}/>
+    </section><form className="settings-form import-preview" onSubmit={e => { e.preventDefault(); void apply(); }}>
+      {rows.map((row, index) => <section className="settings-card import-row" key={row.sourceId}>
+        <div className="import-row-header"><label className="notification-toggle"><input type="checkbox" checked={row.selected} disabled={busy}
+          onChange={e => patch(index, { selected: e.target.checked })}/><span><strong>{row.name || t('service')}</strong><small>{row.url}</small></span></label>
+          <div><label htmlFor={`import-workspace-${index}`}>{t("Workspace")}</label><select id={`import-workspace-${index}`} value={row.destination}
+            required={row.selected} disabled={busy || !row.selected} onChange={e => patch(index, { destination: e.target.value })}>{options}</select></div>
+        </div>
+        <details><summary>{t('Edit details')}</summary><div className="import-row-fields">
+          <TextField label={t("Application name")} id={`import-name-${index}`} value={row.name}
+            required={row.selected} maxLength={48} disabled={busy || !row.selected} onChange={e => patch(index, { name: e.target.value })}/>
+          <TextField label={t("Website URL (HTTPS)")} id={`import-url-${index}`} value={row.url}
+            required={row.selected} maxLength={2048} disabled={busy || !row.selected} onChange={e => patch(index, { url: e.target.value })}/>
+        </div></details>
         {data.apps.some(app => app.url === row.url) && <p className="page-note">{t("An account already uses this URL. Importing this service creates a separate account.")}</p>}
-        <label htmlFor={`import-workspace-${index}`}>{t("Workspace")}</label><select id={`import-workspace-${index}`} value={row.destination}
-          required={row.selected} disabled={busy || !row.selected} onChange={e => patch(index, { destination: e.target.value })}>{options}</select>
       </section>)}
-      <div className="page-actions"><button className="primary" disabled={busy || !selected.length || selected.some(row => !row.destination)}>
-        {busy ? t("Importing…") : t('Import {count} applications', { count: selected.length })}</button>
-        <button type="button" className="secondary" disabled={busy} onClick={() => { setRows([]); setLoaded(false); }}>{t("Cancel import")}</button></div>
+      <div className="page-actions"><Button type="submit" className="primary" aria-busy={busy} disabled={busy || !selected.length || selected.some(row => !row.destination)}>
+        {busy ? t("Importing") : t(selected.length === 1 ? 'Import {count} application' : 'Import {count} applications', { count: selected.length })}</Button>
+        <Button variant="secondary" type="button" className="secondary" disabled={busy} onClick={() => { setRows([]); setLoaded(false); }}>{t("Cancel import")}</Button></div>
     </form></>}
   </div>;
 }

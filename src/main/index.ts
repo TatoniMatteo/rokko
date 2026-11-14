@@ -140,7 +140,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
     view = new WebContentsView({ webPreferences: {
       session: partitionSession, nodeIntegration: false, contextIsolation: true, sandbox: true
     } });
-    view.setBorderRadius(23);
+    view.setBorderRadius(0);
     const remote = view.webContents;
     remote.setUserAgent(serviceUserAgent(appInfo.url, partitionSession.getUserAgent()));
     installNavigation(remote);

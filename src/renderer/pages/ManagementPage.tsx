@@ -1,3 +1,4 @@
+import { Button, TextField } from '../components/ui';
 import { useState } from 'react';
 import type { AppData, ContextMenuRequest, WebApp, Workspace } from '../../shared/contracts/model';
 import type { Preferences } from '../../shared/preferences/preferences.mjs';
@@ -25,10 +26,10 @@ export function ManagementPage({ mode, data, preferences, initialWorkspace, busy
     <h1>{t(mode === 'services' ? 'Configured services' : 'All workspaces')}</h1>
     <p>{t(mode === 'services' ? 'Manage every service, including hidden workspaces and global apps.' : 'Manage workspace names, accounts and visibility in one place.')}</p>
   </div></div><div className="page-actions dashboard-actions">
-    <button className="primary" onClick={mode === 'services' ? onCatalog : onNewWorkspace}><Icon name="plus"/>
-      {t(mode === 'services' ? 'Add application' : 'New workspace')}</button></div>
+    <Button className="primary" onClick={mode === 'services' ? onCatalog : onNewWorkspace}><Icon name="plus"/>
+      {t(mode === 'services' ? 'Add application' : 'New workspace')}</Button></div>
     <section className="settings-card"><div className="management-filters"><div>
-      <label htmlFor="management-search">{t('Search')}</label><input id="management-search" type="search" value={query}
+      <TextField label={t('Search')} id="management-search" type="search" value={query}
         onChange={e => setQuery(e.target.value)} placeholder={t('Search by name…')}/></div>
       {mode === 'services' && <div><label htmlFor="management-workspace">{t('Workspace')}</label>
         <select id="management-workspace" value={workspace} onChange={e => setWorkspace(e.target.value)}>
@@ -39,7 +40,7 @@ export function ManagementPage({ mode, data, preferences, initialWorkspace, busy
         onContextMenu={event => { event.preventDefault(); onContext({ kind: 'service', id: a.id }); }}>
         <ServiceIcon name={a.name} url={a.url} icon={a.icon}/><div className="row-label"><strong>{a.name}</strong>
           <small>{workspaceName(a.workspaceId)} · {new URL(a.url).hostname}</small></div>
-        <button className="secondary compact" disabled={busy} aria-label={t('Open {name}', { name: a.name })} onClick={() => onOpen(a)}>{t('Open')}</button>
+        <Button variant="secondary" className="secondary compact" disabled={busy} aria-label={t('Open {name}', { name: a.name })} onClick={() => onOpen(a)}>{t('Open')}</Button>
         <button className="icon-btn" disabled={busy} aria-label={t('Edit {name}', { name: a.name })} onClick={() => onEditApp(a)}><Icon name="more"/></button>
       </div>) : workspaces.map(w => <div className="management-row" key={w.id} data-workspace-id={w.id}
         onContextMenu={event => { event.preventDefault(); onContext({ kind: 'workspace', id: w.id }); }}>
