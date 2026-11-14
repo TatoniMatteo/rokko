@@ -1,3 +1,4 @@
+import { SeedColorPicker } from '../components/SeedColorPicker';
 import { Button, Card } from '../components/ui';
 import type { Preferences } from '../../shared/preferences/preferences.mjs';
 import { useI18n } from '../preferences/i18n';
@@ -13,8 +14,8 @@ export function ApplicationSettingsPage({ preferences, browserLanguage, busy, on
       <label htmlFor="theme">{t('Theme')}</label><select id="theme" value={preferences.theme} disabled={busy}
         onChange={e => onChange({ ...preferences, theme: e.target.value as Preferences['theme'] })}>
         <option value="system">{t('Follow system')}</option><option value="light">{t('Light')}</option><option value="dark">{t('Dark')}</option></select>
-    </div><div><label htmlFor="seed">{t('Seed color')}</label><input type="color" id="seed" value={preferences.seed} disabled={busy}
-      onChange={e => onChange({ ...preferences, seed: e.target.value })}/></div>
+    </div><SeedColorPicker value={preferences.seed} disabled={busy}
+      onChange={seed => onChange({ ...preferences, seed })}/>
     <div><label htmlFor="dock-position">{t('Dock position')}</label><select id="dock-position" value={preferences.dock} disabled={busy}
       onChange={e => onChange({ ...preferences, dock: e.target.value as Preferences['dock'] })}>
       <option value="left">{t('Left')}</option><option value="right">{t('Right')}</option><option value="top">{t('Top')}</option><option value="bottom">{t('Bottom')}</option></select></div>

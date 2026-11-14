@@ -1,1 +1,1 @@
-export function loadError(code: number | 'blocked'): { title: string; message: string };
+export function loadError(code: number | 'blocked' | 'crashed'): { title: string; message: string };

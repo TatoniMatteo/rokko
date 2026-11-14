@@ -241,5 +241,14 @@
   "Reading": "Lettura",
   "Importing": "Importazione",
   "Sending": "Invio",
-  "Loading": "Caricamento"
+  "Loading": "Caricamento",
+  "This application stopped unexpectedly": "Questa applicazione si è arrestata in modo imprevisto",
+  "Reload the service to recover. Your saved login stays on this device.": "Ricarica il servizio per riprenderlo. L’accesso salvato rimane su questo dispositivo.",
+  "Blue": "Blu",
+  "Teal": "Verde petrolio",
+  "Green": "Verde",
+  "Amber": "Ambra",
+  "Rose": "Rosa",
+  "Purple": "Viola",
+  "Choose a custom color": "Scegli un colore personalizzato"
 }
