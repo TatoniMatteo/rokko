@@ -48,7 +48,7 @@ export function ManagementPage({ mode, data, preferences, initialWorkspace, busy
           <small>{t(data.apps.filter(a => a.workspaceId === w.id).length === 1 ? '{count} service' : '{count} services',
             { count: data.apps.filter(a => a.workspaceId === w.id).length })}</small></div>
         <label className="visibility-control"><span className="sr-only">{t('Show {name} in dock', { name: w.name })}</span>
-          <input type="checkbox" role="switch" checked={!preferences.hiddenWorkspaces.includes(w.id)} disabled={busy}
+          <input type="checkbox" role="switch" aria-checked={!preferences.hiddenWorkspaces.includes(w.id)} checked={!preferences.hiddenWorkspaces.includes(w.id)} disabled={busy}
             onChange={() => onVisibility(w)}/></label>
         <button className="icon-btn" disabled={busy} aria-label={t('Edit workspace {name}', { name: w.name })} onClick={() => onEditWorkspace(w)}><Icon name="more"/></button>
       </div>)}</div>

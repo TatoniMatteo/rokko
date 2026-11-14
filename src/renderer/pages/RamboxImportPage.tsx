@@ -1,5 +1,5 @@
 import { Button, TextField } from '../components/ui';
-import { useI18n, errorMessage } from '../preferences/i18n';
+import { useI18n } from '../preferences/i18n';
 import { useState } from 'react';
 import type { AppData, AppSnapshot } from '../../shared/contracts/model';
 import { parseRamboxMetadata, type ImportService } from '../../shared/import/rambox.mjs';
@@ -79,7 +79,7 @@ export function RamboxImportPage({ data, onImported }: { data: AppData; onImport
           onClick={() => setRows(current => current.map(row => ({ ...row, selected: false })))}>{t("Select none")}</button></div>
     </section><form className="settings-form import-preview" onSubmit={e => { e.preventDefault(); void apply(); }}>
       {rows.map((row, index) => <section className="settings-card import-row" key={row.sourceId}>
-        <div className="import-row-header"><label className="notification-toggle"><input type="checkbox" checked={row.selected} disabled={busy}
+        <div className="import-row-header"><label className="notification-toggle" aria-label={row.name || t('service')}><input type="checkbox" checked={row.selected} disabled={busy}
           onChange={e => patch(index, { selected: e.target.checked })}/><span><strong>{row.name || t('service')}</strong><small>{row.url}</small></span></label>
           <div><label htmlFor={`import-workspace-${index}`}>{t("Workspace")}</label><select id={`import-workspace-${index}`} value={row.destination}
             required={row.selected} disabled={busy || !row.selected} onChange={e => patch(index, { destination: e.target.value })}>{options}</select></div>

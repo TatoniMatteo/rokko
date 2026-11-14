@@ -19,12 +19,13 @@
     "dev:raw": "electron-vite dev",
     "linux:doctor": "node scripts/linux/dev.mjs --doctor",
     "linux:setup": "node scripts/linux/dev.mjs --setup",
-    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:verify": "node scripts/release/verify.mjs",
     "smoke:linux": "node scripts/release/smoke-linux.mjs",
     "smoke:prepare": "node scripts/release/prepare-smoke.mjs",
     "design:sync": "node scripts/design/figcraft.mjs",
-    "design:watch": "node scripts/design/figcraft.mjs --watch"
+    "design:watch": "node scripts/design/figcraft.mjs --watch",
+    "lint": "oxlint --deny-warnings src scripts tests build electron.vite.config.ts"
   },
   "dependencies": {
     "react": "19.3.1",
@@ -38,6 +39,7 @@
     "electron": "45.3.0",
     "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
+    "oxlint": "1.93.0",
     "typescript": "7.0.2",
     "vite": "8.3.7"
   },

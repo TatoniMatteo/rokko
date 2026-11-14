@@ -25,7 +25,8 @@ export async function attached(port, fn, binary = process.env.FIGCRAFT_CLI || 'f
       const p = pending.get(value.id);
       if (!p) return;
       pending.delete(value.id);
-      value.error ? p.reject(new Error(value.error.message)) : p.resolve(value.result);
+      if (value.error) p.reject(new Error(value.error.message));
+      else p.resolve(value.result);
     } catch (error) {
       reject(error);
     }
