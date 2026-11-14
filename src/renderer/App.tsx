@@ -81,7 +81,12 @@ export function App() {
   const editingWorkspace = snapshot.data.workspaces.find(
     (workspace) => workspace.id === editingWorkspaceId,
   );
-  const preferences = snapshot.preferences ?? defaultPreferences();
+  const savedPreferences = snapshot.preferences ?? defaultPreferences();
+  const [preferencesDraft, setPreferencesDraft] = useState<Preferences | null>(null);
+  const preferences = page === 'settings' && preferencesDraft ? preferencesDraft : savedPreferences;
+  useEffect(() => {
+    if (page !== 'settings') setPreferencesDraft(null);
+  }, [page]);
   const contentRef = useServiceViewport(
     page,
     preferences.dock,
@@ -326,7 +331,7 @@ export function App() {
           dark={preferences.theme === 'dark' || (preferences.theme === 'system' && systemDark)}
         />
         <div className="app-shell">
-          <section className="work-area">
+          <main className="work-area">
             <div className="web-content" ref={contentRef}>
               <RecoveryPage
                 recovery={snapshot.recovery}
@@ -335,7 +340,7 @@ export function App() {
                 onRecover={(action) => void run(() => window.rokko.recoverProfile(action), 'home')}
               />
             </div>
-          </section>
+          </main>
         </div>
       </LanguageContext>
     );
@@ -374,7 +379,7 @@ export function App() {
             <Icon name="more" />
           </button>
         )}
-        <section className="work-area">
+        <main className="work-area">
           {noticeKey && noticeKey !== dismissedNotices && (
             <section className="inline-confirm" role="status">
               {(snapshot.profileNotices ?? []).map((message) => (
@@ -434,6 +439,7 @@ export function App() {
                     setPendingNavigation(null);
                     setDirty(false);
                     if (page === 'app' && !editingAppId) appDrafts.current.delete(draftKey);
+                    setPreferencesDraft(null);
                     action();
                   }}
                 >
@@ -503,7 +509,25 @@ export function App() {
                 preferences={preferences}
                 browserLanguage={snapshot.browserLanguage ?? preferences.language}
                 busy={busy}
-                onChange={(value) => void savePreferences(value)}
+                dirty={Boolean(preferencesDraft) && dirty}
+                onChange={(value) => {
+                  setPreferencesDraft(value);
+                  setDirty(JSON.stringify(value) !== JSON.stringify(savedPreferences));
+                }}
+                onSave={() => {
+                  void savePreferences(preferences).then((saved) => {
+                    if (saved) {
+                      setPreferencesDraft(null);
+                      setDirty(false);
+                    }
+                  });
+                }}
+                onCancel={() => {
+                  setPreferencesDraft(null);
+                  setDirty(false);
+                  setError('');
+                  setPendingNavigation(null);
+                }}
                 onShortcuts={() => navigate('shortcuts')}
                 onImport={() => navigate('import')}
                 onManageServices={() => manageServices()}
@@ -608,7 +632,7 @@ export function App() {
               />
             )}
           </div>
-        </section>
+        </main>
       </div>
     </LanguageContext>
   );

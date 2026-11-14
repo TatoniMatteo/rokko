@@ -1,9 +1,9 @@
 const html =
   '<!doctype html><title>Rokko local fixture</title><h1>Local service fixture</h1><input id="message"><script>window.fixtureTicks=0;setInterval(()=>window.fixtureTicks++,100)</script>';
 
-export async function eventually(check, label) {
+export async function eventually(check, label, timeout = 10000) {
   const start = performance.now();
-  while (performance.now() - start < 10000) {
+  while (performance.now() - start < timeout) {
     const value = await check();
     if (value) return value;
     await new Promise((resolve) => setTimeout(resolve, 50));

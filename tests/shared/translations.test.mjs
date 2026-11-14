@@ -10,8 +10,8 @@ test('translation coverage',()=>{
       if(entry.isDirectory())scan(file);
       else if(entry.name.endsWith('.tsx')){
         const source=readFileSync(file,'utf8');
-        for(const match of source.matchAll(/\bt\((['"])(.*?)\1/g)){
-          assert.ok(Object.hasOwn(italian,match[2]),`${entry.name}: ${match[2]}`);
+        for(const match of source.matchAll(/\bt\(\s*(['"])((?:\\.|(?!\1)[\s\S])*?)\1/g)){
+          assert.ok(Object.hasOwn(italian,match[2].replace(/\\'/g, "'")),`${entry.name}: ${match[2]}`);
         }
       }
     }
@@ -22,4 +22,20 @@ test('translation coverage',()=>{
       [...value.matchAll(/\{\w+\}/g)].map(m=>m[0]).sort(),key);
   }
   for(const [value,key] of Object.entries(errors))assert.equal(italian[key],value);
+});
+
+test('dynamic messages have translations', () => {
+  const errors = readFileSync(
+    new URL('../../src/shared/apps/load-errors.mjs', import.meta.url),
+    'utf8',
+  );
+  for (const match of errors.matchAll(/(?:title|message):\s*'([^']+)'/g))
+    assert.ok(italian[match[1]], match[1]);
+  for (const key of [
+    'Preview — changes are not saved yet.',
+    'Your settings are saved.',
+    '{name} placed.',
+    '{name} picked up. Use arrow keys to move.',
+  ])
+    assert.ok(italian[key], key);
 });
