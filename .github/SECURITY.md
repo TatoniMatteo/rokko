@@ -15,7 +15,7 @@ Obiettivi di triage e aggiornamenti sono in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 - Main è privilegiato: possiede viste, sessioni, filesystem e decisioni sui permessi.
 - La shell locale accede a un bridge limitato; i servizi remoti non ricevono il bridge Rokko.
-  Gli handler shell verificano il sender; payload, ID e URL restano non attendibili.
+  Gli handler shell verificano sender e frame principale; payload, ID e URL restano non attendibili.
 - I servizi usano sandbox e contextIsolation, senza Node. La condivisione della sessione
   avviene per scelta del workspace; i servizi globali sono privati. Non si copiano credenziali.
 - La compatibilità notifiche ha canali separati e controlli su origine, sessione e consenso;
@@ -32,15 +32,15 @@ non sostituiscono i gate residui; la tabella rende verificabile il lavoro necess
 
 | Rischio | Priorità | Prova richiesta / attività residua |
 |---|---|---|
-| Servizio remoto raggiunge IPC/filesystem privilegiato | Critica | Sender estraneo negato; subframe, payload e ogni canale in #23 |
+| Servizio remoto raggiunge IPC/filesystem privilegiato | Critica | Frame principale obbligatorio;22 handler/44 prove negative e payload invalidi verificati in #23 |
 | Cookie/account condivisi o cancellati involontariamente | Critica | Due account, logout/riavvio/cambio profilo e nessuna cancellazione implicita: #30/#35 |
 | Redirect/popup, permessi media, file e download | Alta | Schemi vietati, origini, diniego/revoca e salvataggi controllati: #32/#45/#51/#55 |
 | Import/icon fetch malevoli o esaurimento risorse | Alta | Input limitati, rollback, redirect, SVG e URL privati/DNS: #32/#49 |
-| Crash/worker residui o perdita di configurazione | Alta | Chiusura, errori in scrittura, corruzione, cleanup e standby: #29/#35/#47 |
+| Crash/worker residui o perdita di configurazione | Alta | Crash/cleanup verificati in #29; corruzione, errori di scrittura e standby: #35/#47 |
 | Dipendenze/build o aggiornamenti compromessi | Alta | Audit completo, patch Electron, lock, licenze/SBOM e artefatti: #12/#61/#73 |
 | Log/esportazioni o accesso locale al disco | Alta | Redazione, conservazione e diagnostica volontaria: #26; keyring/cifratura dipendono dall’OS |
 
 Prima della consegna servono prove negative riproducibili e report degli ambienti realmente
 verificati; non inserire account o credenziali reali nei test CI. L’audit delle dipendenze
-non copre tutti i rischi della tabella. Notifiche e rilascio rimangono attività differite.
+non copre tutti i rischi della tabella. Web Push e distribuzione dei pacchetti desktop restano nei gate successivi.
 Le vulnerabilità alte/critiche raggiungibili richiedono mitigazione prima della consegna.

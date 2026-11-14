@@ -1,7 +1,7 @@
 {
   "name": "rokko",
   "private": true,
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "Rokko — Linux-first local workspace for web apps",
   "main": "./out/main/index.js",
   "license": "GPL-3.0-or-later",
@@ -37,7 +37,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.3.0",
-    "electron": "45.3.0",
+    "electron": "45.3.2",
     "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
     "oxlint": "1.93.0",

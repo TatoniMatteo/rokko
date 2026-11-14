@@ -1,6 +1,6 @@
 # Architettura di Rokko
 
-Baseline decisionale della fase 0, 13 novembre 2026. “Oggi” descrive il codice;
+Baseline decisionale della fase 0, 13 novembre 2026; shell aggiornata con la fase 1. “Oggi” descrive il codice;
 “decisione” indica il vincolo per il lavoro successivo, non una funzione già implementata.
 
 ## Confini e struttura
@@ -33,7 +33,11 @@ sospensione esplicita appartiene a #46. Non sospendere automaticamente per ridur
 Alla rimozione: chiudere notifiche e popup del servizio, fermare soltanto worker di cui non
 restano peer proprietari, chiudere webContents, eliminare riferimenti e stato UI. Alla chiusura
 della finestra: avviare teardown di tutte le viste e completare arresto applicativo.
-La robustezza finale su crash/standby e policy finestra/tray resta in #21/#24/#29/#47.
+Istanza unica e riattivazione ripristinano la finestra esistente. Il tray offre mostra,
+nascondi ed esci; chiudere la finestra termina l’app anche quando il desktop non espone il tray.
+Un crash del renderer mostra una riprova senza cancellare la sessione; teardown concorrenti
+condividono la stessa operazione e il cleanup dei worker ha un limite temporale. Standby e
+recupero della configurazione corrotta restano in #47/#35.
 
 ## Persistenza: decisione e migrazione
 
@@ -68,11 +72,11 @@ lo richiedono. Non introdurre un processo sempre attivo per un bisogno non dimos
 
 Ogni handler autorizza il sender shell prima del payload e valida i dati a runtime:
 i tipi TypeScript non proteggono dai messaggi manipolati. La prova negativa locale su
-22 handler reali ha negato sender estranei senza mutazioni; subframe e trasporto completo
-restano gate di #23. La policy completa è in [SECURITY.md](SECURITY.md).
+22 handler reali ha negato sender estranei e frame non principali (44 tentativi),
+senza mutazioni; i canali senza risposta ignorano messaggi estranei senza eccezioni globali. La policy completa è in [SECURITY.md](SECURITY.md).
 
 Errori di servizio mantengono stato locale sicuro e offrono riprova; non cancellano sessioni.
-Per #23 uniformare codici/errori localizzabili, senza stack, URL di login o segreti nel bridge.
+Gli errori dei moduli sono localizzabili nel renderer, senza trasferire credenziali nel bridge.
 Crash, corruzione e scrittura fallita devono conservare l’ultimo stato valido e guidare
 il recupero. Nessuna promessa di recupero completo finché #35/#47 non sono verificate.
 
