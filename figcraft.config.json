@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "document": ".codex/tasks/figcraft-design-study/Rokko-UI-Collegata.figcraft",
+  "port": 7979,
+  "output": "src/renderer/styles/generated/figcraft.json",
+  "components": {
+    "primary": 16,
+    "primaryHover": 24,
+    "primaryFocus": 32,
+    "primaryDisabled": 40,
+    "primaryBusy": 48,
+    "secondary": 56,
+    "danger": 72,
+    "field": 140,
+    "fieldFocus": 152,
+    "fieldError": 164,
+    "fieldDisabled": 176,
+    "card": 3924
+  },
+  "structures": {
+    "primary": "f644ec9a65cf052b657248583e457ce11a4b0e71c29684b6bc5be5d0718ad0e6",
+    "primaryHover": "f644ec9a65cf052b657248583e457ce11a4b0e71c29684b6bc5be5d0718ad0e6",
+    "primaryFocus": "20203831fef9ddcd881f3f4d323065c7ae225b5fb440c791ef6cdbac3ad30b17",
+    "primaryDisabled": "f644ec9a65cf052b657248583e457ce11a4b0e71c29684b6bc5be5d0718ad0e6",
+    "primaryBusy": "4a66fe2154664307c58d45f248ef4eed35f73693993bf71ab2c9e2cb11beab78",
+    "secondary": "f644ec9a65cf052b657248583e457ce11a4b0e71c29684b6bc5be5d0718ad0e6",
+    "danger": "f644ec9a65cf052b657248583e457ce11a4b0e71c29684b6bc5be5d0718ad0e6",
+    "field": "04b7f3b750edc0b488601c8dd42e64d03ca5b6398358b16a8b0e0cedeea1abbf",
+    "fieldFocus": "04b7f3b750edc0b488601c8dd42e64d03ca5b6398358b16a8b0e0cedeea1abbf",
+    "fieldError": "04b7f3b750edc0b488601c8dd42e64d03ca5b6398358b16a8b0e0cedeea1abbf",
+    "fieldDisabled": "04b7f3b750edc0b488601c8dd42e64d03ca5b6398358b16a8b0e0cedeea1abbf",
+    "card": "72a8a4ce8d14738df11205f8f833e317ef39f5acbc8711bb6f09734a81c166a1"
+  }
+}

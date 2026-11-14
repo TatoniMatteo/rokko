@@ -1,3 +1,4 @@
+import { Button, Card } from '../components/ui';
 import { useState } from 'react';
 import type { AppData, ContextMenuRequest, WebApp, Workspace } from '../../shared/contracts/model';
 import { orderedCards, type Preferences } from '../../shared/preferences/preferences.mjs';
@@ -6,11 +7,10 @@ import { ServiceIcon } from '../components/ServiceIcon';
 import { SortableList } from '../components/SortableList';
 import { WorkspaceMark } from '../components/Dock';
 import { useI18n } from '../preferences/i18n';
-import logo from '../../../assets/brand/rokko-dark-icon.png';
-export function DashboardPage({ data, preferences, busy, onPreferences, onMoveApp, onEditApp, onEditWorkspace, onNewWorkspace, onCatalog, onManageServices, onManageWorkspaces, onContext }: {
+export function DashboardPage({ data, preferences, busy, onPreferences, onMoveApp, onEditApp, onEditWorkspace, onNewWorkspace, onCatalog, onImport, onManageServices, onManageWorkspaces, onContext }: {
   onContext: (input: ContextMenuRequest) => void; data: AppData; preferences: Preferences; busy: boolean; onPreferences: (value: Preferences) => Promise<unknown>;
   onMoveApp: (id: string, target: string, after: boolean) => Promise<unknown>; onEditApp: (app: WebApp) => void;
-  onEditWorkspace: (workspace: Workspace) => void; onNewWorkspace: () => void; onCatalog: () => void; onManageServices: () => void; onManageWorkspaces: () => void;
+  onEditWorkspace: (workspace: Workspace) => void; onNewWorkspace: () => void; onCatalog: () => void; onManageServices: () => void; onManageWorkspaces: () => void; onImport: () => void;
 }) {
   const t = useI18n();
   const [selected, setSelected] = useState(data.selectedWorkspaceId);
@@ -19,10 +19,27 @@ export function DashboardPage({ data, preferences, busy, onPreferences, onMoveAp
   const apps = data.apps.filter(a => a.workspaceId === (selectedId === 'global' ? null : selectedId));
   const cardName = (id: string) => data.workspaces.find(w => w.id === id)?.name ?? t('Always visible');
   return <div className="settings-page dashboard welcome"><div className="page-heading"><div className="dashboard-heading-copy">
-    <h1>{t('Your space, your way.')}</h1><p>{t('All your services. Just the workspaces you need.')}</p></div><span className="dashboard-brand"><img className="dashboard-logo" src={logo} alt="Rokko"/></span></div>
-    <div className="page-actions dashboard-actions"><button className="primary" onClick={onCatalog}><Icon name="plus"/>{t('Add application')}</button>
-      <button className="secondary" onClick={onNewWorkspace}>{t('New workspace')}</button><button className="secondary" onClick={onManageServices}>{t('Configured services')}</button>
-      <button className="secondary" onClick={onManageWorkspaces}>{t('All workspaces')}</button></div>
+    <h1>{t('Your space, your way.')}</h1><p>{t('All your services. Just the workspaces you need.')}</p></div></div>
+    <div className="page-actions dashboard-actions"><Button className="primary" onClick={onCatalog}><Icon name="plus"/>{t('Add application')}</Button>
+      <Button variant="secondary" className="secondary" onClick={onNewWorkspace}>{t('New workspace')}</Button><Button variant="secondary" className="secondary" onClick={onManageServices}>{t('Configured services')}</Button>
+      <Button variant="secondary" className="secondary" onClick={onManageWorkspaces}>{t('All workspaces')}</Button></div>
+    {!data.apps.length && <Card className="empty-state"><h2>{t('Where would you like to start?')}</h2>
+      <p>{t('Choose a service, add your own website, or import your services from Rambox.')}</p>
+      <div className="page-actions"><Button onClick={onCatalog}>{t('Choose a service')}</Button>
+        <Button variant="secondary" onClick={onImport}>{t('Import from Rambox')}</Button></div></Card>}
+    <div className="workspace-overview">{cards.map(id => {
+      const workspace = data.workspaces.find(w => w.id === id);
+      const services = data.apps.filter(a => a.workspaceId === (id === 'global' ? null : id));
+      return <Card key={id} className="workspace-summary"><header>
+        <WorkspaceMark name={workspace?.name ?? null}/><h2>{cardName(id)}</h2></header>
+        <p className="page-note">{id === 'global' ? t('Available in every workspace') : t(services.length === 1 ? '{count} service' : '{count} services', { count: services.length })}
+          {workspace && preferences.hiddenWorkspaces.includes(id) && <> · {t('Hidden from dock')}</>}</p>
+        <div className="summary-services">{services.slice(0, 3).map(service => <span className="summary-service" key={service.id}>
+          <ServiceIcon name={service.name} url={service.url} icon={service.icon}/><span>{service.name}</span></span>)}
+          {!services.length && <span className="page-note">{t('No applications yet.')}</span>}</div>
+        <Button variant="secondary" onClick={() => setSelected(id)}>{t('Manage services and order')}</Button>
+      </Card>;
+    })}</div>
     <div className="dashboard-grid"><section className="settings-card"><h2>{t('Dock cards')}</h2>
       <p className="page-note">{t('Home and Settings are always available. Hidden workspaces keep running.')}</p>
       <SortableList ids={cards} onContext={id => onContext({ kind: id === 'global' ? 'global' : 'workspace', id })} label={cardName} disabled={busy} onMove={async (id, target, after) => {

@@ -6,6 +6,8 @@ export function SortableList({ ids, render, onMove, label = id => id, onContext,
 }) {
   const t = useI18n();
   const drag = useRef<string | null>(null);
+  const originIndex = useRef(0);
+  const handles = useRef(new Map<string, HTMLButtonElement>());
   const [over, setOver] = useState<{ id: string; after: boolean } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -14,7 +16,11 @@ export function SortableList({ ids, render, onMove, label = id => id, onContext,
   async function move(id: string, target: string, after: boolean) {
     if (locked || id === target) return;
     setPending(true);
-    try { const result = await onMove(id, target, after); if (result !== false) setAnnouncement(t('Order updated')); }
+    try { const result = await onMove(id, target, after); if (result !== false) {
+      const order = ids.filter(value => value !== id); order.splice(order.indexOf(target) + (after ? 1 : 0), 0, id);
+      setAnnouncement(t('{name} moved to position {position} of {count}', { name: label(id), position: order.indexOf(id) + 1, count: ids.length }));
+      if (picked === id) requestAnimationFrame(() => handles.current.get(id)?.focus());
+    } }
     finally { setPending(false); }
   }
   return <div className="sort-list"><span className="sr-only" role="status">{announcement}</span>
@@ -34,13 +40,17 @@ export function SortableList({ ids, render, onMove, label = id => id, onContext,
         drag.current = null; setOver(null);
         if (from && ids.includes(from)) void move(from, id, event.clientY > rect.top + rect.height / 2);
       }}>
-      <button className="drag-handle" type="button" aria-disabled={locked}
+      <button ref={node => { if (node) handles.current.set(id, node); else handles.current.delete(id); }} className="drag-handle" type="button" aria-disabled={locked}
         title={t('Drag to reorder. Keyboard: Space to pick up, arrows to move, Space to finish.')}
         aria-label={t('Reorder {name}', { name: label(id) })} aria-pressed={picked === id}
         onKeyDown={event => {
           if (locked) return;
-          if ([' ', 'Enter'].includes(event.key)) { event.preventDefault(); setPicked(picked === id ? null : id); }
-          else if (event.key === 'Escape') { setPicked(null); }
+          if ([' ', 'Enter'].includes(event.key)) { event.preventDefault(); originIndex.current = ids.indexOf(id); setPicked(picked === id ? null : id); }
+          else if (event.key === 'Escape' && picked === id) {
+            event.preventDefault(); const current = ids.indexOf(id); const target = ids[originIndex.current];
+            if (target && current !== originIndex.current) void move(id, target, current < originIndex.current);
+            setPicked(null);
+          }
           else if (picked === id && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
             event.preventDefault(); const offset = event.key === 'ArrowUp' ? -1 : 1;
             const target = ids[ids.indexOf(id) + offset]; if (target) void move(id, target, offset > 0);

@@ -22,7 +22,9 @@
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "release:verify": "node scripts/release/verify.mjs",
     "smoke:linux": "node scripts/release/smoke-linux.mjs",
-    "smoke:prepare": "node scripts/release/prepare-smoke.mjs"
+    "smoke:prepare": "node scripts/release/prepare-smoke.mjs",
+    "design:sync": "node scripts/design/figcraft.mjs",
+    "design:watch": "node scripts/design/figcraft.mjs --watch"
   },
   "dependencies": {
     "react": "19.3.1",

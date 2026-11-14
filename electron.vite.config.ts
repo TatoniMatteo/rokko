@@ -1,5 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
+import { figcraftPlugin } from './scripts/design/figcraft.mjs';
 import { resolve } from 'node:path';
 
 export default defineConfig({
@@ -13,7 +14,7 @@ export default defineConfig({
   },
   renderer: {
     root: 'src/renderer',
-    plugins: [react()],
+    plugins: [react(), figcraftPlugin()],
     resolve: { alias: { '@shared': resolve('src/shared') } }
   }
 });

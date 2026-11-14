@@ -1,0 +1,34 @@
+{
+  "css": "/* Generated from FigCraft. Edit the native components, then save. */\n.ui-button.primary,.primary{opacity:1;border-radius:9px;background:var(--accent);border:1px solid var(--accent);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:700;color:var(--on-accent)}\n.ui-button.primary:hover:not(:disabled),.primary:hover:not(:disabled){opacity:1;border-radius:9px;background:var(--accent-hover);border:1px solid var(--accent);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:700;color:var(--on-accent)}\n.ui-button.primary:focus-visible,.primary:focus-visible{opacity:1;border-radius:9px;background:var(--accent);border:1px solid var(--accent);box-shadow:inset 0 0 0 2px var(--accent);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:700;color:var(--on-accent)}\n.ui-button.primary:disabled,.primary:disabled{opacity:0.44999998807907104;border-radius:9px;background:var(--accent);border:1px solid var(--accent);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:700;color:var(--on-accent)}\n.ui-button.primary[aria-busy=true],.primary[aria-busy=true]{opacity:1;border-radius:9px;background:var(--accent);border:1px solid var(--accent);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:700;color:var(--on-accent)}\n.ui-button.secondary,.secondary{opacity:1;border-radius:9px;background:var(--panel);border:1px solid var(--border);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:400;color:var(--text)}\n.ui-button.danger-button,.danger-button{opacity:1;border-radius:9px;background:var(--panel);border:1px solid var(--danger);--ui-button-width:208px;line-height:20px;min-height:44px;padding:0 15px;font-size:14px;font-weight:400;color:var(--danger)}\n.ui-field-control,.settings-page input:not([type=checkbox]):not([type=color]):not([type=file]),.settings-page select{opacity:1;border-radius:8px;background:var(--panel);border:1px solid var(--border);line-height:20px;min-height:44px;padding:0 11px;font-size:14px;font-weight:400;color:var(--text)}\n.ui-field-control:focus-visible,.settings-page input:not([type=checkbox]):not([type=color]):not([type=file]):focus-visible,.settings-page select:focus-visible{opacity:1;border-radius:8px;background:var(--panel);border:1px solid var(--accent);box-shadow:inset 0 0 0 1px var(--accent);line-height:20px;min-height:44px;padding:0 11px;font-size:14px;font-weight:400;color:var(--text)}\n.ui-field-control[aria-invalid=true],.settings-page input:not([type=checkbox]):not([type=color]):not([type=file])[aria-invalid=true],.settings-page select[aria-invalid=true]{opacity:1;border-radius:8px;background:var(--panel);border:1px solid var(--danger);line-height:20px;min-height:44px;padding:0 11px;font-size:14px;font-weight:400;color:var(--text)}\n.ui-field-control:disabled,.settings-page input:not([type=checkbox]):not([type=color]):not([type=file]):disabled,.settings-page select:disabled{opacity:0.44999998807907104;border-radius:8px;background:var(--panel2);border:1px solid var(--border);line-height:20px;min-height:44px;padding:0 11px;font-size:14px;font-weight:400;color:var(--muted)}\n.ui-card,.settings-card{opacity:1;border-radius:16px;background:var(--panel);border:1px solid var(--line);padding:24px 24px 24px 24px}\n",
+  "palettes": {
+    "light": {
+      "bg": "#f4f6f8",
+      "accent-container": "#e5efff",
+      "danger": "#b83242",
+      "accent-hover": "#1b4fae",
+      "panel": "#ffffff",
+      "panel2": "#e9eef5",
+      "text": "#172334",
+      "muted": "#566578",
+      "accent": "#245dc5",
+      "on-accent": "#ffffff",
+      "line": "#cbd3dd",
+      "border": "#7e8b9d"
+    },
+    "dark": {
+      "bg": "#111a25",
+      "accent-container": "#223b5a",
+      "danger": "#ff9aa2",
+      "accent-hover": "#a6caff",
+      "panel": "#182432",
+      "panel2": "#25354a",
+      "text": "#edf3fa",
+      "muted": "#a9b8ca",
+      "accent": "#8cbaff",
+      "on-accent": "#102443",
+      "line": "#435267",
+      "border": "#738299"
+    }
+  },
+  "sourceHash": "a47e0bdc22bb89a3c16679778d195353d3335ead531418cb44fb58f789a12362"
+}

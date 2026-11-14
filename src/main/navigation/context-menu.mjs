@@ -7,7 +7,8 @@ export function contextMenuItems(data, input, language, loadedIds = [], hiddenId
   if (input.kind === 'service') {
     if (!data.apps.some(service => service.id === input.id)) throw new Error('Unknown service');
     return [item('open', 'Open application', 'Apri applicazione'), item('edit', 'Edit application', 'Modifica applicazione'),
-      item('reload', 'Reload', 'Ricarica', loadedIds.includes(input.id)), item('browser', 'Open in browser', 'Apri nel browser')];
+      item('reload', 'Reload', 'Ricarica', loadedIds.includes(input.id)), item('browser', 'Open in browser', 'Apri nel browser'),
+      item('controls', 'Service controls', 'Controlli del servizio'), item('remove', 'Remove application…', 'Rimuovi applicazione…')];
   }
   if (input.kind === 'global') {
     if (input.id !== 'global') throw new Error('Invalid context menu');
@@ -15,5 +16,7 @@ export function contextMenuItems(data, input, language, loadedIds = [], hiddenId
   }
   if (!data.workspaces.some(workspace => workspace.id === input.id)) throw new Error('Unknown workspace');
   return [item('edit', 'Workspace settings', 'Impostazioni workspace'),
-    item('services', 'Manage services', 'Gestisci servizi'), hiddenIds.includes(input.id) ? item('show', 'Show in dock', 'Mostra nella barra') : item('hide', 'Hide from dock', 'Nascondi dalla barra')];
+    item('services', 'Manage services', 'Gestisci servizi'), hiddenIds.includes(input.id) ? item('show', 'Show in dock', 'Mostra nella barra') : item('hide', 'Hide from dock', 'Nascondi dalla barra'),
+    item('reorder', 'Organize in Home', 'Organizza nella Home'),
+    item('remove', 'Remove workspace…', 'Rimuovi workspace…', data.workspaces.length > 1)];
 }
