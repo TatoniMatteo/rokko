@@ -14,7 +14,7 @@ test('AppArmor profile grants userns only to requested executable', () => {
 });
 
 test('AppArmor policy refuses unsafe executable paths', () => {
-  assert.throws(() => profileForExecutable('/tmp/electron\" {\n  capability sys_admin,'));
+  assert.throws(() => profileForExecutable('/tmp/electron" {\n  capability sys_admin,'));
   assert.throws(() => profileForExecutable('relative/electron'));
 });
 

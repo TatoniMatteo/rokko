@@ -379,7 +379,7 @@ export function App() {
             </div>
           )}
           {pendingNavigation && (
-            <section className="inline-confirm" role="region" aria-labelledby="unsaved-title">
+            <section className="inline-confirm" aria-labelledby="unsaved-title">
               <h2 id="unsaved-title">{t('Unsaved changes')}</h2>
               <p>{t('Leave this page without saving your changes?')}</p>
               <div className="page-actions">

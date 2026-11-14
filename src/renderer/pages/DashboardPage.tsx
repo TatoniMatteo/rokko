@@ -50,7 +50,7 @@ export function DashboardPage({ data, preferences, busy, onPreferences, onMoveAp
         <WorkspaceMark name={workspace?.name ?? null} index={data.workspaces.findIndex(w => w.id === id)}/>
         <button className="row-label" onClick={() => setSelected(id)} aria-pressed={id === selectedId}>{cardName(id)}
           <small>{t(count === 1 ? '{count} service' : '{count} services', { count })}</small></button>
-        {workspace && <><input type="checkbox" role="switch" checked={!preferences.hiddenWorkspaces.includes(id)} disabled={busy}
+        {workspace && <><input type="checkbox" role="switch" aria-checked={!preferences.hiddenWorkspaces.includes(id)} checked={!preferences.hiddenWorkspaces.includes(id)} disabled={busy}
           aria-label={t('Show {name} in dock', { name: workspace.name })} onChange={e => void onPreferences({ ...preferences,
             hiddenWorkspaces: e.target.checked ? preferences.hiddenWorkspaces.filter(v => v !== id) : [...preferences.hiddenWorkspaces, id] })}/>
           <button className="icon-btn" aria-label={t('Edit workspace {name}', { name: workspace.name })} onClick={() => onEditWorkspace(workspace)}><Icon name="more"/></button></>}

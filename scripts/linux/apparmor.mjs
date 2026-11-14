@@ -12,7 +12,7 @@ export function profileName(executable) {
 
 export function profileForExecutable(executable) {
   // Reject unexpected control chars and syntax metacharacters before writing a privileged policy.
-  if (!executable.startsWith('/') || /[\r\n\0"\\{}*?\[\]]/.test(executable)) {
+  if (!executable.startsWith('/') || /[\r\n\0"\\{}*?[\]]/.test(executable)) {
     throw new Error('Unsupported Electron installation path for AppArmor');
   }
   return `# Rokko development: generated for this local Electron executable.\n` +
