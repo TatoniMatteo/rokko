@@ -71,8 +71,8 @@ le verifiche; non copiare o eliminare partizioni Chromium e non fare downgrade c
 
 | Ambiente x86_64 | Stato delle prove | Limiti |
 |---|---|---|
-| Ubuntu 26.04.1, GNOME/Wayland | Riferimento desktop; avvio e QA shell/viste verificati | Account reali, scaling e pacchetti richiedono prove dedicate |
-| Stesso host, X11 virtuale Xvfb | QA shell/viste verificato | Non certifica una sessione Xorg fisica, GPU o tray |
+| Ubuntu 26.04.1, GNOME/Wayland | Riferimento desktop; avvio e QA shell/viste verificati | Account autenticati, multi-monitor e pacchetti richiedono prove dedicate |
+| Stesso host, X11 virtuale Xvfb | QA shell/viste e scaling al 125% verificati | Non certifica una sessione Xorg fisica, GPU o tray |
 | Ubuntu 24.04, GitHub Actions | Installazione frozen, typecheck, unit test, build e audit | Runner headless: non è una prova del desktop |
 | Ubuntu 24.04 desktop, Xorg fisico | Candidati per la prossima matrice | Non ancora supporto certificato |
 | Altre distro, ARM64 e altri OS | Fuori dalla baseline corrente | Solo dopo valutazione e prove esplicite |
@@ -80,10 +80,14 @@ le verifiche; non copiare o eliminare partizioni Chromium e non fare downgrade c
 Una prova desktop registra commit, architettura, distro, ambiente grafico, scaling e runtime.
 Verificare avvio sandboxato, resize e quattro posizioni barra, menu/focus, due sessioni,
 riavvio e cleanup. Le prove successive includono 100/125/200% DPI, due monitor, offline e
-standby; tray disponibile/assente e policy chiusura sono lavoro ancora aperto.
+standby. Zoom 80/100/125/150%, recupero dopo crash e riavvio con cookie sono stati provati
+su Wayland e X11 virtuale; il fallback tray è stato verificato con indisponibilità simulata.
 
 Su GNOME non presumere la presenza del tray: Home/impostazioni e un comando esplicito per
-uscire devono restare raggiungibili. Servono decisioni e verifiche in #21/#24.
+uscire devono restare raggiungibili. Il menu tray offre mostra/nascondi/esci; chiudere la
+finestra termina sempre l’app. Una seconda apertura ripristina la finestra nascosta o minimizzata.
 Il permesso notifiche non garantisce banner se l'OS applica DND; Web Push resta una capacità
 separata e il lavoro sulle notifiche è differito. La matrice non lo riattiva.
 DEB/AppImage e installazioni pulite sono verifiche di rilascio separate, attualmente differite.
+
+Per baseline e budget delle risorse usare la [procedura riproducibile](../scripts/qa/README.md).

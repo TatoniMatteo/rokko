@@ -22,3 +22,36 @@ jobs:
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm check
       - run: corepack pnpm audit --audit-level high
+      - name: Install Linux smoke dependencies
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y xvfb xauth dbus-x11 apparmor libgtk-3-0t64 libnss3 libgbm1 libasound2t64
+      - name: Prepare targeted Electron sandbox profile
+        id: sandbox
+        run: |
+          mkdir -p .codex/tasks/ci-smoke
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          import { electronExecutable, profileForExecutable } from './scripts/linux/apparmor.mjs';
+          import { ensureElectronInstalled } from './scripts/linux/electron-install.mjs';
+          const executable = ensureElectronInstalled(process.cwd(), { electronExecutable });
+          writeFileSync('.codex/tasks/ci-smoke/electron.apparmor', profileForExecutable(executable));
+          JS
+          if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ]; then
+            sudo apparmor_parser --replace .codex/tasks/ci-smoke/electron.apparmor
+            echo "loaded=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Smoke sandboxed Linux UI and restart persistence
+        run: >-
+          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm smoke:linux
+          --executable node_modules/electron/dist/electron --app .
+          --output .codex/tasks/ci-smoke/results --x11
+      - name: Unload temporary sandbox profile
+        if: ${{ always() && steps.sandbox.outputs.loaded == 'true' }}
+        run: sudo apparmor_parser --remove .codex/tasks/ci-smoke/electron.apparmor
+      - name: Keep Linux smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-smoke
+          path: .codex/tasks/ci-smoke/results/
+          if-no-files-found: ignore
+          retention-days: 7
