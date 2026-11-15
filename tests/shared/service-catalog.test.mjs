@@ -6,6 +6,8 @@ const template = { id: 'example', name: 'Example', url: 'https://example.com/', 
 
 test('starter catalog', () => {
   assert.equal(serviceCatalog.version, 1);
+  assert.ok(serviceCatalog.templates.length >= 30);
+  for (const id of ['google-calendar','google-chat','google-drive','microsoft-teams','proton-mail','trello','todoist','zoom']) assert.ok(serviceCatalog.templates.some(service => service.id === id), id);
   assert.ok(serviceCatalog.templates.some(service => service.id === 'gmail'));
   assert.ok(serviceCatalog.templates.some(service => service.id === 'github'));
   assert.equal(new Set(serviceCatalog.templates.map(service => service.id)).size, serviceCatalog.templates.length);
