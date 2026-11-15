@@ -101,7 +101,9 @@ const server = createServer(async (req, res) => {
     else if (command.action === 'crash') {
       const w = owned().find((w) => w.id === command.id);
       if (!w) throw Error('target');
-      w.forcefullyCrashRenderer();
+      const pid = w.getOSProcessId();
+      if (pid <= 1 || pid === process.pid) throw Error('renderer pid');
+      process.kill(pid, 'SIGKILL');
     } else if (
       command.action === 'download-mode' &&
       ['complete', 'paused', 'invalid', 'interactive'].includes(command.mode)
