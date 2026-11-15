@@ -72,6 +72,10 @@ try {
   assert.equal(await ui.run('document.querySelectorAll("[role=option]").length'), 0);
   await ui.key('Escape');
   await eventually(() => ui.run('!document.querySelector("#quick-search")'), 'search closed');
+  await eventually(async()=>{
+    const status=await native({action:'status'});
+    return status.focusedId===status.contents.find(w=>w.url==='https://alpha.rokko.test/')?.id;
+  },'service focus restored');
   assert.equal(
     await fixture.evaluate(beta.session, 'document.querySelector("input").value'),
     'private draft',

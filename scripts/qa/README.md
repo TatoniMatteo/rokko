@@ -50,7 +50,7 @@ La condivisione schermo seleziona esplicitamente una sorgente del solo display v
 Il prodotto conserva la policy del portale Wayland. Il test non autorizza dispositivi nell'app normale.
 
 La prova aggiuntiva del chooser nativo richiede `ROKKO_QA_NATIVE_CHOOSER=1`, Python GI/AT-SPI
-ed è dipendente dal portale desktop: il percorso di sostituzione file rimane da convalidare.
+ed è dipendente dal portale desktop. Annullamento e sostituzione sono stati verificati con il chooser Nautilus su display/bus isolati.
 La CI verifica DownloadItem e opzioni del dialogo, non certifica ogni chooser di sistema.
 
 ## Produttività

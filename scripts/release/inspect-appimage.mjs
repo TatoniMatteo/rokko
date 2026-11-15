@@ -26,8 +26,8 @@ export async function appImageOffset(file, arch = process.arch) {
 
 export async function inspectAppImage(file, expectedLauncher, desktopName, arch = process.arch) {
   const offset = await appImageOffset(file, arch);
-  function member(name) {
-    const result = spawnSync('unsquashfs', ['-o', String(offset), '-cat', file, name], { encoding: 'utf8' });
+  function member(name, encoding = 'utf8') {
+    const result = spawnSync('unsquashfs', ['-o', String(offset), '-cat', file, name], { encoding, maxBuffer:16*1024*1024 });
     if (result.error) throw result.error;
     if (result.status !== 0) throw new Error(`Unable to inspect AppImage ${name}: ${result.stderr}`);
     return result.stdout;
@@ -36,7 +36,12 @@ export async function inspectAppImage(file, expectedLauncher, desktopName, arch 
     throw new Error('AppImage launcher differs from reviewed sandbox-preserving launcher');
   }
   const desktop = member(desktopName);
-  if (!/^Exec=AppRun %U$/m.test(desktop) || /--no-sandbox|--disable-setuid-sandbox/.test(desktop)) {
+  if (!/^Type=Application$/m.test(desktop) || !/^Name=Rokko$/m.test(desktop) || !/^Exec=AppRun %U$/m.test(desktop) || /--no-sandbox|--disable-setuid-sandbox/.test(desktop)) {
     throw new Error('Unsafe or unexpected AppImage desktop entry');
+  }
+  const icon=desktop.match(/^Icon=([\w.-]+)$/m)?.[1];
+  if (!icon || !member(icon+'.png',null).subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex'))) throw new Error('AppImage desktop icon is missing or invalid');
+  for (const name of ['LICENSE.electron.txt','LICENSES.chromium.html','resources/licenses/ROKKO-LICENSE.txt','resources/licenses/ONEST-LICENSE.txt','resources/licenses/FONT-AWESOME-LICENSE.txt','resources/licenses/THIRD-PARTY-NOTICES.txt']) {
+    if (!member(name).trim()) throw new Error('Missing packaged license: '+name);
   }
 }

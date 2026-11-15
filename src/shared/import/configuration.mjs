@@ -96,6 +96,8 @@ export function exportConfiguration(data, preferences) {
 }
 export function planConfigurationImport(data, preferences, input, options, uuid) {
   const document = validateConfiguration(input);
+  if (new Set(document.workspaces.map(workspace => workspace.name)).size !== document.workspaces.length)
+    throw new Error('Workspace names are ambiguous. Rename duplicates before importing.');
   if (
     !keys(options, ['duplicates', 'appearance']) ||
     !['skip', 'copy'].includes(options.duplicates) ||

@@ -31,7 +31,7 @@ def walk(node, depth=0):
 def button(nodes, names):
     for node in nodes:
         try:
-            if node.get_role() == Atspi.Role.PUSH_BUTTON and node.get_name().strip().casefold() in names:
+            if node.get_role() == Atspi.Role.PUSH_BUTTON and node.get_name().strip().casefold() in names and node.get_state_set().contains(Atspi.StateType.SHOWING) and node.get_state_set().contains(Atspi.StateType.SENSITIVE):
                 return node
         except Exception:
             pass
@@ -44,12 +44,21 @@ def click(node):
 
 saved = False
 confirmations = 0
+last_replace = None
 last = []
 while time.monotonic() < deadline:
     nodes = list(walk(Atspi.get_desktop(0)))
     last = [(node.get_role_name(), node.get_name()) for node in nodes]
-    replace = button(nodes, {"replace", "sostituisci", "_replace", "_sostituisci"})
+    alerts = [node for node in nodes if node.get_role() in (Atspi.Role.ALERT, Atspi.Role.DIALOG) and node.get_state_set().contains(Atspi.StateType.SHOWING)]
+    replace = next((found for alert in reversed(alerts) if (found := button(list(walk(alert)), {"replace", "sostituisci", "_replace", "_sostituisci"}))), None)
+    if saved and confirmations and not replace and not any(node.get_role() == Atspi.Role.FRAME and node.get_name().startswith("https://linux.rokko.test:") for node in nodes):
+        print(json.dumps({"overwrite": sys.argv[2], "confirmations": confirmations}))
+        sys.exit(0)
     if saved and replace:
+        if replace == last_replace:
+            time.sleep(0.15)
+            continue
+        last_replace = replace
         chosen = replace if sys.argv[2] == "replace" else button(nodes, {"cancel", "annulla", "_cancel", "_annulla", "close", "chiudi"})
         assert chosen, str([(node.get_role_name(), node.get_name()) for node in nodes if node.get_n_actions()])
         click(chosen)

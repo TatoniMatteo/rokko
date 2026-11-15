@@ -36,3 +36,13 @@ Riferimento locale: Ubuntu 26.04.1 x64, GNOME/Wayland; prove aggiuntive su Xvfb 
 fisica o più monitor. Lingua del browser e del sito può essere superata dalle preferenze
 dell'account del provider. Web Push rimane nel gate #53; non è garantito dalla sola notifica
 locale di prova. Per un problema usare i template issue; per dati sensibili usare SECURITY.md.
+
+## Matrice dei candidati AppImage
+
+| Ambiente | Verifica riuscita | Limite |
+|---|---|---|
+| Ubuntu 26.04.1 x64, GNOME/Wayland | AppImage reale, due avvii, shell/IPC e persistenza | Avvio tramite AppImageLauncher; integrazione automatica nel menu non certificata |
+| Ubuntu 24.04 x64, CI/Xvfb | Build nativa, checksum/licenze, launcher estratto e riavvio sandboxato | Ambiente headless, non desktop fisico |
+| Ubuntu 24.04 ARM64, CI/Xvfb | Build nativa, architettura ELF, checksum/licenze e avvio sandboxato estratto | Non certifica FUSE o hardware ARM specifico |
+
+I candidati sono unsigned. Le prove non sbloccano da sole i gate DEB, asset e notifiche.
