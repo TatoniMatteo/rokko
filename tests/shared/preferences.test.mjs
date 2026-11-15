@@ -46,3 +46,11 @@ test('generated palettes maintain contrast', () => {
     }
   }
 });
+
+test('theme fallback and determinism', () => {
+  for (const dark of [false,true]) {
+    const expected=themeTokens('#245dc5',dark);
+    for (const seed of [null,undefined,'red','#xyzxyz','#123',{},42]) assert.deepEqual(themeTokens(seed,dark),expected);
+    assert.deepEqual(themeTokens('#bf4b6c',dark),themeTokens('#bf4b6c',dark));
+  }
+});

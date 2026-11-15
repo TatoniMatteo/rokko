@@ -6,6 +6,8 @@ const receiveIcon = (_event: Electron.IpcRendererEvent, url: string, icon: strin
   for (const listener of iconListeners) listener(url, icon);
 };
 const api: RokkoAPI = {
+  recoverProfile: action => ipcRenderer.invoke('rokko:recover-profile', action),
+  exportProfile: () => ipcRenderer.invoke('rokko:export-profile'),
   onServiceIcon: callback => {
     iconListeners.add(callback);
     if (iconListeners.size === 1) ipcRenderer.on('rokko:service-icon-changed', receiveIcon);

@@ -36,3 +36,8 @@ test('catalog validation', () => {
   assert.equal(normalized.templates[0].name, 'Example');
   assert.equal(normalized.templates[0].url, 'https://example.com/');
 });
+
+test('catalog schema stays bounded', () => {
+  assert.throws(()=>validateServiceCatalog({version:1,templates:[],script:'unused'}));
+  assert.throws(()=>validateServiceCatalog({version:1,templates:Array.from({length:101},(_,n)=>({...template,id:'service-'+n}))}));
+});

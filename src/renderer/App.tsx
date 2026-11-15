@@ -1,3 +1,4 @@
+import { RecoveryPage } from './pages/RecoveryPage';
 import { ServiceControlsPage } from './pages/ServiceControlsPage';
 import { ServiceErrorPage } from './pages/ServiceErrorPage';
 import { useServiceViewport } from './hooks/useServiceViewport';
@@ -66,6 +67,8 @@ export function App() {
   const [previewUrl, setPreviewUrl] = useState('');
   const appDrafts = useRef(new Map<string, AppInput>());
   const [error, setError] = useState('');
+  const [dismissedNotices, setDismissedNotices] = useState('');
+  const noticeKey = (snapshot.profileNotices ?? []).join('\n');
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const draftBaseline = useRef('');
@@ -105,6 +108,7 @@ export function App() {
       .then((value) => {
         setSnapshot(value);
         setAppStates(value.appStates ?? {});
+        setPage(value.activeAppId ? 'home' : 'dashboard');
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
@@ -314,6 +318,27 @@ export function App() {
     });
   }
 
+  if (snapshot.recovery)
+    return (
+      <LanguageContext value={preferences.language}>
+        <DesignStyles
+          seed={preferences.seed}
+          dark={preferences.theme === 'dark' || (preferences.theme === 'system' && systemDark)}
+        />
+        <div className="app-shell">
+          <section className="work-area">
+            <div className="web-content" ref={contentRef}>
+              <RecoveryPage
+                recovery={snapshot.recovery}
+                busy={busy}
+                error={error}
+                onRecover={(action) => void run(() => window.rokko.recoverProfile(action), 'home')}
+              />
+            </div>
+          </section>
+        </div>
+      </LanguageContext>
+    );
   return (
     <LanguageContext value={preferences.language}>
       <DesignStyles
@@ -350,6 +375,16 @@ export function App() {
           </button>
         )}
         <section className="work-area">
+          {noticeKey && noticeKey !== dismissedNotices && (
+            <section className="inline-confirm" role="status">
+              {(snapshot.profileNotices ?? []).map((message) => (
+                <p key={message}>{t(message)}</p>
+              ))}
+              <Button variant="secondary" onClick={() => setDismissedNotices(noticeKey)}>
+                {t('Dismiss')}
+              </Button>
+            </section>
+          )}
           {page !== 'home' && page !== 'dashboard' && (
             <div className="page-back">
               <button

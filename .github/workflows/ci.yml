@@ -44,6 +44,11 @@ jobs:
           xvfb-run --auto-servernum dbus-run-session -- corepack pnpm smoke:linux
           --executable node_modules/electron/dist/electron --app .
           --output .codex/tasks/ci-smoke/results --x11
+      - name: Check SQLite migration, sessions and recovery
+        run: >-
+          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:profile
+          --executable node_modules/electron/dist/electron
+          --output .codex/tasks/ci-smoke/results/profile --x11
       - name: Unload temporary sandbox profile
         if: ${{ always() && steps.sandbox.outputs.loaded == 'true' }}
         run: sudo apparmor_parser --remove .codex/tasks/ci-smoke/electron.apparmor
