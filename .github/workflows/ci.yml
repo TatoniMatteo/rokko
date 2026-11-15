@@ -59,6 +59,11 @@ jobs:
           xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:connections
           --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/connections --x11
+      - name: Check permissions, recovery, downloads and private diagnostics
+        run: >-
+          xvfb-run --auto-servernum dbus-run-session -- env ROKKO_QA_X11_SCREEN=1
+          corepack pnpm qa:reliability --executable node_modules/electron/dist/electron
+          --output .codex/tasks/ci-smoke/results/reliability --x11
       - name: Unload temporary sandbox profile
         if: ${{ always() && steps.sandbox.outputs.loaded == 'true' }}
         run: sudo apparmor_parser --remove .codex/tasks/ci-smoke/electron.apparmor

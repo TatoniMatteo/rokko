@@ -187,3 +187,8 @@ body { line-height:20px; }
 .theme-preview { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:20px; margin:20px 0; border:1px solid var(--border); border-radius:12px; background:var(--panel2); }
 .theme-preview p { color:var(--muted); margin:8px 0 0; }
 .theme-preview-accent { flex:none; padding:10px 16px; border-radius:9px; background:var(--accent); color:var(--on-accent); font-weight:700; }
+
+.settings-page>.catalog-group { width:100%; max-width:1056px; margin:28px auto 0; }
+.catalog-group+.catalog-group { border-top:1px solid var(--line); padding-top:28px; }
+.catalog-group>h2 { margin:0 0 16px; font-size:18px; }
+.catalog-group .service-grid { margin:0; }

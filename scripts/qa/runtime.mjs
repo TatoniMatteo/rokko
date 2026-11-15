@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-export async function createRuntime(defaultOutput) {
+export async function createRuntime(defaultOutput, { isolateDesktop = false } = {}) {
   const { values } = parseArgs({
     options: {
       prepared: { type: 'string' },
@@ -26,6 +26,13 @@ export async function createRuntime(defaultOutput) {
   await mkdir(output, { recursive: true });
   const config = await mkdtemp(join(output, 'profile-'));
   const env = { ...process.env, XDG_CONFIG_HOME: config };
+  if (isolateDesktop) {
+    env.XDG_DATA_HOME = join(config, 'desktop-data');
+    env.XDG_CACHE_HOME = join(config, 'desktop-cache');
+    env.GSETTINGS_BACKEND = 'memory';
+    await mkdir(env.XDG_DATA_HOME, { recursive: true, mode: 0o700 });
+    await mkdir(env.XDG_CACHE_HOME, { recursive: true, mode: 0o700 });
+  }
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.ELECTRON_RENDERER_URL;
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

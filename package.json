@@ -2,7 +2,7 @@
   "name": "rokko",
   "private": true,
   "version": "0.1.0-alpha.4",
-  "description": "Rokko — Linux-first local workspace for web apps",
+  "description": "Rokko \u2014 Linux-first local workspace for web apps",
   "main": "./out/main/index.js",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -29,7 +29,8 @@
     "qa:resources": "node scripts/qa/resources.mjs",
     "qa:profile": "node scripts/qa/profile.mjs --app scripts/qa/profile-entry.cjs",
     "qa:interface": "node scripts/qa/interface.mjs --app scripts/qa/profile-entry.cjs",
-    "qa:connections": "node scripts/qa/connections.mjs --app scripts/qa/profile-entry.cjs"
+    "qa:connections": "node scripts/qa/connections.mjs --app scripts/qa/profile-entry.cjs",
+    "qa:reliability": "node scripts/qa/reliability.mjs --app scripts/qa/reliability-entry.cjs"
   },
   "dependencies": {
     "react": "19.3.1",

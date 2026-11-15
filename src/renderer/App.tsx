@@ -1,3 +1,6 @@
+import { PermissionsPage } from './pages/PermissionsPage';
+import { DownloadsPage } from './pages/DownloadsPage';
+import { SuspendedServicePage } from './pages/SuspendedServicePage';
 import { RecoveryPage } from './pages/RecoveryPage';
 import { ServiceControlsPage } from './pages/ServiceControlsPage';
 import { ServiceErrorPage } from './pages/ServiceErrorPage';
@@ -41,6 +44,8 @@ const initial: AppSnapshot = {
 };
 
 type Page =
+  | 'permissions'
+  | 'downloads'
   | 'home'
   | 'catalog'
   | 'app'
@@ -76,6 +81,7 @@ export function App() {
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const active = snapshot.data.apps.find((app) => app.id === snapshot.activeAppId);
   const appState = active ? appStates[active.id] : undefined;
+  const serviceSuspended = Boolean(active && snapshot.suspendedIds?.includes(active.id));
   const failure = appState?.status === 'failed' ? loadError(appState.error ?? -2) : null;
   const editingApp = snapshot.data.apps.find((app) => app.id === editingAppId);
   const editingWorkspace = snapshot.data.workspaces.find(
@@ -155,6 +161,20 @@ export function App() {
       setBusy(false);
     }
   }, []);
+  useEffect(() => {
+    const online = () => {
+      void window.rokko.recoverConnections().catch(() => {});
+    };
+    window.addEventListener('online', online);
+    return () => window.removeEventListener('online', online);
+  }, []);
+  useEffect(
+    () =>
+      window.rokko.onPermissions((permissionState) =>
+        setSnapshot((previous) => ({ ...previous, permissionState })),
+      ),
+    [],
+  );
   const browserAction = async (action: () => Promise<void>): Promise<void> => {
     try {
       await action();
@@ -380,6 +400,14 @@ export function App() {
           </button>
         )}
         <main className="work-area">
+          {page !== 'permissions' && Boolean(snapshot.permissionState?.requests.length) && (
+            <section className="inline-confirm" role="status">
+              <p>{t('A service is requesting device access.')}</p>
+              <Button variant="secondary" onClick={() => navigate('permissions')}>
+                {t('Review permissions')}
+              </Button>
+            </section>
+          )}
           {noticeKey && noticeKey !== dismissedNotices && (
             <section className="inline-confirm" role="status">
               {(snapshot.profileNotices ?? []).map((message) => (
@@ -528,6 +556,8 @@ export function App() {
                   setError('');
                   setPendingNavigation(null);
                 }}
+                onPermissions={() => navigate('permissions')}
+                onDownloads={() => navigate('downloads')}
                 onShortcuts={() => navigate('shortcuts')}
                 onImport={() => navigate('import')}
                 onManageServices={() => manageServices()}
@@ -537,6 +567,18 @@ export function App() {
             {page === 'controls' && active && (
               <ServiceControlsPage
                 name={active.name}
+                suspended={serviceSuspended}
+                onPermissions={() => navigate('permissions')}
+                onDownloads={() => navigate('downloads')}
+                onSuspend={() =>
+                  void run(
+                    () =>
+                      serviceSuspended
+                        ? window.rokko.resumeService(active.id)
+                        : window.rokko.suspendService(active.id),
+                    'home',
+                  )
+                }
                 canGoBack={appState?.canGoBack}
                 canGoForward={appState?.canGoForward}
                 onBack={() => {
@@ -557,7 +599,13 @@ export function App() {
                 onEdit={() => openApp(undefined, active)}
               />
             )}
-            {page === 'home' && active && failure && (
+            {page === 'home' && active && serviceSuspended && (
+              <SuspendedServicePage
+                busy={busy}
+                onResume={() => void run(() => window.rokko.resumeService(active.id), 'home')}
+              />
+            )}
+            {page === 'home' && active && !serviceSuspended && failure && (
               <ServiceErrorPage
                 failure={failure}
                 onRetry={() => void browserAction(() => window.rokko.reload())}
@@ -567,6 +615,14 @@ export function App() {
                 onEdit={() => openApp(undefined, active)}
               />
             )}
+            {page === 'permissions' && (
+              <PermissionsPage
+                state={snapshot.permissionState ?? { requests: [], grants: [] }}
+                services={snapshot.data.apps}
+                onRevoke={(id) => void run(() => window.rokko.revokePermissions(id))}
+              />
+            )}
+            {page === 'downloads' && <DownloadsPage services={snapshot.data.apps} />}
             {page === 'shortcuts' && <KeyboardShortcutsPage />}
             {page === 'import' && (
               <RamboxImportPage data={snapshot.data} onImported={setSnapshot} />
