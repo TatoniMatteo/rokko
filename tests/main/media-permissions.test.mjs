@@ -11,7 +11,7 @@ const code =
       new URL('../../src/main/permissions/media-permissions.ts', import.meta.url),
       'utf8',
     ),
-    { mode: 'transform' },
+    { mode: 'strip' },
   )
     .replace(/import \{([^}]+)\} from ['"]([^'"]+)['"];?/g, 'const {$1} = require("$2");')
     .replace('export class MediaPermissions', 'class MediaPermissions') +
