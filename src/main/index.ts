@@ -1,3 +1,6 @@
+import { splitBounds } from './lifecycle/split-bounds.mjs';
+import { exportConfiguration, planConfigurationImport } from '../shared/import/configuration.mjs';
+import { readConfiguration, writeConfiguration } from './import/configuration-file.mjs';
 import { externalLink } from '../shared/security/external-links.mjs';
 import { MediaPermissions } from './permissions/media-permissions';
 import { Downloads } from './downloads/downloads';
@@ -70,13 +73,14 @@ const suspended = new Set<string>();
 const appStates = new Map<string, AppLoadState>();
 let activeAppId: string | null = initial.activeAppId;
 let overlayOpen = false;
+let previewRatio: number | undefined;
 let bounds: ViewBounds = { x: 238, y: 106, width: 942, height: 550 };
 let persistentNotifications: PersistentNotifications;
 const permissionSessions = new WeakSet<Electron.Session>();
 const accountWindows = new Map<string, Set<Electron.BrowserWindow>>();
 const downloads = new Downloads(contents => [...views].find(([,view]) => view.webContents === contents)?.[0], () => {if(shellView&&!shellView.webContents.isDestroyed())shellView.webContents.send('rokko:downloads-changed',downloads.list());}, event => diagnostics.record(event));
 
-const mediaPermissions = new MediaPermissions(contents => {const entry=[...views].find(([,view]) => view.webContents === contents);return entry?{id:entry[0],active:entry[0]===activeAppId&&!overlayOpen&&!suspended.has(entry[0])}:undefined;}, () => {if(shellView&&!shellView.webContents.isDestroyed())shellView.webContents.send('rokko:permissions-changed',mediaPermissions.list());}, event => diagnostics.record(event));
+const mediaPermissions = new MediaPermissions(contents => {const entry=[...views].find(([,view]) => view.webContents === contents);return entry?{id:entry[0],active:Boolean(win?.contentView.children.includes(entry[1]))&&!overlayOpen&&!suspended.has(entry[0])}:undefined;}, () => {if(shellView&&!shellView.webContents.isDestroyed())shellView.webContents.send('rokko:permissions-changed',mediaPermissions.list());}, event => diagnostics.record(event));
 
 function saveData(value: AppData = data): void {
   try { preferences = activeStore().saveData(value, activeAppId).preferences; }
@@ -95,18 +99,26 @@ function scheduleContext(): void {
     catch { profileNotices = ['Could not save the last workspace. Your services are unchanged.']; shellView?.webContents.send('rokko:snapshot-changed', snapshot()); }
   }, 150);
 }
-function snapshot(): AppSnapshot { return { data, activeAppId, suspendedIds:[...suspended], permissionState:mediaPermissions.list(), appStates: Object.fromEntries(appStates), preferences, browserLanguage, recovery, profileNotices }; }
+function snapshot(): AppSnapshot { return { data, activeAppId, loadedIds:[...views.keys()], suspendedIds:[...suspended], permissionState:mediaPermissions.list(), appStates: Object.fromEntries(appStates), preferences, browserLanguage, recovery, profileNotices }; }
 function updateAppState(id: string, state: AppLoadState): void {
   if (!views.has(id)) return;
   const previous = appStates.get(id);
   appStates.set(id, state);
   shellView?.webContents.send('rokko:app-state', id, state);
-  if (id === activeAppId && (previous?.status === 'failed' || state.status === 'failed')) redrawView();
+  if ((id === activeAppId || id === preferences.split.secondaryId) && (previous?.status === 'failed' || state.status === 'failed')) redrawView();
 }
 function installNavigation(contents: Electron.WebContents): void {
   contents.on('before-input-event', (event, input) => {
     if (shutdown || !shellView || (contents !== shellView.webContents &&
-        contents !== (activeAppId ? views.get(activeAppId)?.webContents : undefined))) return;
+        contents !== (activeAppId ? views.get(activeAppId)?.webContents : undefined) &&
+        contents !== (preferences.split.secondaryId ? views.get(preferences.split.secondaryId)?.webContents : undefined))) return;
+    if (input.type === 'keyDown' && input.control && !input.alt && !input.meta && !input.shift &&
+        !input.isComposing && !input.isAutoRepeat && input.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      shellView.webContents.focus();
+      shellView.webContents.send('rokko:quick-switch');
+      return;
+    }
     const target = shortcutTarget(data, activeAppId, input, overlayOpen, preferences);
     if (!target) return;
     event.preventDefault();
@@ -159,6 +171,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
     } });
     view.setBorderRadius(0);
     const remote = view.webContents;
+    remote.setAudioMuted(preferences.mutedServices.includes(appInfo.id));
     remote.setUserAgent(serviceUserAgent(appInfo.url, partitionSession.getUserAgent()));
     installNavigation(remote);
     remote.on('page-favicon-updated', (_event, urls) => {
@@ -243,15 +256,19 @@ function syncNotificationViews(): void {
 function redrawView(): void {
   if (shutdown || !win || !shellView) return;
   detachViews();
-  const appInfo = selectedApp();
-  if (!appInfo || overlayOpen || suspended.has(appInfo.id)) return;
-  const view = ensureView(appInfo);
-  if (appStates.get(appInfo.id)?.status === 'failed') return;
+  const primary = selectedApp();
+  if (!primary || overlayOpen) return;
+  const secondary = data.apps.find(service => service.id === preferences.split.secondaryId && service.id !== primary.id && dockApps(data,preferences).some(item=>item.id===service.id));
   const size = shellView.getBounds();
-  const safeBounds = validBounds(bounds, size.width, size.height)
-    ? bounds : { x: 0, y: 0, width: 0, height: 0 };
-  view.setBounds(safeBounds);
-  win.contentView.addChildView(view);
+  const safeBounds = validBounds(bounds, size.width, size.height) ? bounds : {x:0,y:0,width:0,height:0};
+  const rectangles = secondary ? splitBounds(safeBounds,previewRatio ?? preferences.split.ratio,Math.round(8*shellView.webContents.getZoomFactor())) : [safeBounds];
+  for (const [index,service] of [primary,secondary].entries()) {
+    if (!service || suspended.has(service.id)) continue;
+    const view = ensureView(service);
+    if (appStates.get(service.id)?.status === 'failed') continue;
+    view.setBounds(rectangles[index]);
+    win.contentView.addChildView(view);
+  }
 }
 const externalPrompts = new Set<Electron.WebContents>();
 async function externalFromService(contents:Electron.WebContents,url:string):Promise<void> {
@@ -317,6 +334,7 @@ function setActive(id: string | null): AppSnapshot {
   if (service?.workspaceId && service.workspaceId !== data.selectedWorkspaceId) {
     const next = { ...data, selectedWorkspaceId: service.workspaceId }; data = next;
   }
+  if (id && preferences.split.secondaryId === id) savePreferences({...preferences,split:{...preferences.split,secondaryId:null}});
   activeAppId = id;
   scheduleContext();
   redrawView();
@@ -359,6 +377,56 @@ function loadServiceIcon(site: string, hints: string[] = []): Promise<string | n
   return result;
 }
 function registerIpc(): void {
+  ipcMain.handle('rokko:split', (event,id:unknown,ratio:unknown) => {
+    requireShell(event);
+    if (id !== null && (typeof id !== 'string' || id === activeAppId || !dockApps(data,preferences).some(service=>service.id===id))) throw new Error('Choose a different visible service.');
+    savePreferences(validatePreferences({...preferences,split:{secondaryId:id,ratio}}));
+    previewRatio=undefined; redrawView(); return snapshot();
+  });
+  ipcMain.on('rokko:split-ratio', (event,ratio:unknown) => {
+    if (!isShellSender(event,shellView?.webContents) || shutdown || typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio < 0.25 || ratio > 0.75) return;
+    previewRatio=ratio;redrawView();
+  });
+  ipcMain.handle('rokko:service-control', async (event,id:unknown,action:unknown) => {
+    requireShell(event);
+    const service=data.apps.find(service=>service.id===id);
+    if (!service || !['mute','unmute','reload','reset-permissions','clear-cache'].includes(action as string)) throw new Error('Invalid service action.');
+    if (action === 'mute' || action === 'unmute') {
+      savePreferences({...preferences,mutedServices:action === 'mute' ? [...new Set([...preferences.mutedServices,service.id])] : preferences.mutedServices.filter(id=>id!==service.id)});
+      views.get(service.id)?.webContents.setAudioMuted(action === 'mute');
+    } else if (action === 'reload') reloadService(service.id);
+    else if (action === 'clear-cache') await session.fromPartition(service.partition).clearCache();
+    else return commitRegistry(updateApp(data,service.id,{name:service.name,url:service.url,workspaceId:service.workspaceId,icon:service.icon,shareWorkspaceSession:sharesWorkspace(service),notificationOrigin:null}),service.id);
+    return snapshot();
+  });
+  ipcMain.handle('rokko:configuration-export', async event => {
+    requireShell(event);
+    const document = exportConfiguration(data,preferences);
+    const result = await dialog.showSaveDialog({title:preferences.language === 'it' ? 'Esporta configurazione' : 'Export configuration',defaultPath:'rokko-configuration.json',filters:[{name:'JSON',extensions:['json']}],properties:['showOverwriteConfirmation']});
+    if (result.canceled || !result.filePath) return false;
+    try {await writeConfiguration(result.filePath,document); return true;}
+    catch {throw new Error('Could not export configuration.');}
+  });
+  ipcMain.handle('rokko:configuration-read', async event => {
+    requireShell(event);
+    const result = await dialog.showOpenDialog({properties:['openFile'],filters:[{name:'JSON',extensions:['json']}]});
+    if (result.canceled || !result.filePaths[0]) return null;
+    try {return await readConfiguration(result.filePaths[0]);}
+    catch {throw new Error('Unsupported configuration file.');}
+  });
+  ipcMain.handle('rokko:configuration-import', (event,input:unknown,options:unknown) => {
+    requireShell(event);
+    const next = planConfigurationImport(data,preferences,input,options,randomUUID);
+    const saved = activeStore().saveConfiguration(next.data,next.preferences);
+    data=saved.data; preferences=saved.preferences;
+    if (preferences.language !== browserLanguage) profileNotices=['Restart Rokko to apply the restored language to websites.'];
+    tray?.refresh(); syncNotificationViews(); redrawView();
+    return {...snapshot(),importSummary:{added:next.added,skipped:next.skipped}};
+  });
+  ipcMain.handle('rokko:focus-service', event => {
+    requireShell(event);
+    if (!overlayOpen && activeAppId && !suspended.has(activeAppId)) views.get(activeAppId)?.webContents.focus();
+  });
   let contextMenu: Menu | null = null;
   ipcMain.handle('rokko:context-menu', (event, input: unknown) => {
     requireShell(event);
@@ -583,7 +651,7 @@ function registerIpc(): void {
     if (!next) return;
     bounds = next;
     const view = activeAppId ? views.get(activeAppId) : undefined;
-    if (view) view.setBounds(bounds);
+    if (view) redrawView();
   });
   ipcMain.handle('rokko:back', event => {
     requireShell(event);

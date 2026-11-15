@@ -1,6 +1,7 @@
 import type { AppData, WebApp } from '../contracts/model';
 export interface Preferences {
   version: 1; theme: 'light' | 'dark' | 'system'; seed: string; language: 'it' | 'en';
+  split:{secondaryId:string|null;ratio:number}; mutedServices:string[];
   dock: 'left' | 'right' | 'top' | 'bottom'; cardOrder: string[]; hiddenWorkspaces: string[];
 }
 export function defaultPreferences(language?: string): Preferences;

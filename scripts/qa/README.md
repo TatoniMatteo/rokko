@@ -52,3 +52,13 @@ Il prodotto conserva la policy del portale Wayland. Il test non autorizza dispos
 La prova aggiuntiva del chooser nativo richiede `ROKKO_QA_NATIVE_CHOOSER=1`, Python GI/AT-SPI
 ed è dipendente dal portale desktop: il percorso di sostituzione file rimane da convalidare.
 La CI verifica DownloadItem e opzioni del dialogo, non certifica ogni chooser di sistema.
+
+## Produttività
+
+`pnpm qa:productivity --executable node_modules/electron/dist/electron --x11` su Xvfb e bus isolati
+verifica Ctrl+K da un vero servizio via input nativo, filtro e tastiera, bozze conservate,
+due viste native affiancate senza duplicazione, ridimensionamento, mute per vista,
+cache/reset con cookie e peer conservati, export/import con anteprima, reimport senza duplicati,
+rifiuto di file non validi e layout persistente al riavvio. Non usa account reali.
+I dialoghi per import/export sono indirizzati a file del profilo temporaneo; il chooser nativo
+resta una verifica distinta. Nessun watcher o componente QA viene incluso nel pacchetto.

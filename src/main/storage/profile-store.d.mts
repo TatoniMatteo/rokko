@@ -7,6 +7,7 @@ export class ProfileStore {
   read(): ProfileState;
   saveData(data: AppData, activeAppId?: string | null): ProfileState;
   savePreferences(preferences: Preferences): void;
+  saveConfiguration(data:AppData,preferences:Preferences): ProfileState;
   saveContext(workspaceId: string, activeAppId: string | null): void;
   exportLegacy(destination: string): string;
   close(): void;

@@ -11,9 +11,9 @@ export function WorkspaceMark({ name, index = 0 }: { name: string | null; index?
     style={{ '--workspace-hue': (index * 67 + 180) % 360 } as React.CSSProperties} aria-hidden="true">
     {name ? Array.from(name.trim())[0]?.toLocaleUpperCase() : <Icon name="globe" size={14}/>}</span>;
 }
-export function Dock({ data, preferences, activeId, page, onHome, onSettings, onApp, onContext }: {
+export function Dock({ data, preferences, activeId, page, onHome, onSettings, onSearch, onApp, onContext }: {
   data: AppData; preferences: Preferences; activeId: string | null; page: string;
-  onHome: () => void; onSettings: () => void; onApp: (id: string) => void; onContext: (input: ContextMenuRequest) => void;
+  onHome: () => void; onSettings: () => void; onSearch: () => void; onApp: (id: string) => void; onContext: (input: ContextMenuRequest) => void;
 }) {
   const t = useI18n();
   function dockKey(event: KeyboardEvent<HTMLButtonElement>) {
@@ -40,6 +40,7 @@ export function Dock({ data, preferences, activeId, page, onHome, onSettings, on
   return <nav className="dock" aria-label={t('Services')}><div className="dock-card fixed-card"><img className="dock-logo" src={logo} alt="Rokko"/>
     <button className={`dock-btn ${page === 'dashboard' ? 'selected' : ''}`} title={t('Home')} aria-label={t('Home')} aria-current={page === 'dashboard' ? 'page' : undefined} onKeyDown={dockKey} onClick={onHome}><Icon name="home"/></button>
     <button className={`dock-btn ${page === 'settings' ? 'selected' : ''}`} title={t('Settings')} aria-label={t('Settings')} aria-current={page === 'settings' ? 'page' : undefined} onKeyDown={dockKey} onClick={onSettings}><Icon name="settings"/></button>
+    <button className="dock-btn" title={t('Quick switch')} aria-label={t('Quick switch')} onKeyDown={dockKey} onClick={onSearch}><Icon name="search"/></button>
   </div><div className="dock-groups">{orderedCards(data, preferences).filter(id => !preferences.hiddenWorkspaces.includes(id)).map(id => {
     const workspace = data.workspaces.find(w => w.id === id);
     const apps = data.apps.filter(a => a.workspaceId === (id === 'global' ? null : id));

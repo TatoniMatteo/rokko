@@ -145,6 +145,10 @@ export class ProfileStore {
     this.save(profile);
     return this.read();
   }
+  saveConfiguration(data, preferences) {
+    this.save(validateProfile(data, preferences, this.profile.activeAppId));
+    return this.read();
+  }
   savePreferences(preferences) {
     this.save(validateProfile(this.profile.data, preferences, this.profile.activeAppId));
   }
@@ -169,7 +173,7 @@ export class ProfileStore {
         join(temporary, legacyNames[0]),
         JSON.stringify({ ...profile.data, activeAppId: profile.activeAppId }, null, 2),
       );
-      writePrivate(join(temporary, legacyNames[1]), JSON.stringify(profile.preferences, null, 2));
+      writePrivate(join(temporary, legacyNames[1]), JSON.stringify(Object.fromEntries(['version','theme','seed','language','dock','cardOrder','hiddenWorkspaces'].map(key=>[key,profile.preferences[key]])), null, 2));
       syncDirectory(temporary);
       renameSync(temporary, target);
       syncDirectory(destination);

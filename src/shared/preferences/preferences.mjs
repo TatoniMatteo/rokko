@@ -1,6 +1,6 @@
 export function defaultPreferences(language = 'it') {
   return { version: 1, theme: 'system', seed: '#245dc5', language: language.startsWith('it') ? 'it' : 'en',
-    dock: 'left', cardOrder: [], hiddenWorkspaces: [] };
+    dock: 'left', cardOrder: [], hiddenWorkspaces: [], split: {secondaryId:null,ratio:0.5}, mutedServices: [] };
 }
 export function validatePreferences(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
@@ -15,7 +15,13 @@ export function validatePreferences(input) {
         ids.some(id => typeof id !== 'string' || !id || id.length > 128) ||
         (key === 'hiddenWorkspaces' && ids.includes('global'))) throw new Error('Invalid layout');
   }
-  return { ...input, seed: input.seed.toLowerCase(), cardOrder: [...input.cardOrder], hiddenWorkspaces: [...input.hiddenWorkspaces] };
+  const split = input.split ?? {secondaryId:null,ratio:0.5};
+  if (!split || typeof split !== 'object' || Array.isArray(split) || Object.keys(split).some(key => !['secondaryId','ratio'].includes(key)) ||
+      (split.secondaryId !== null && (typeof split.secondaryId !== 'string' || !/^[\w-]{1,128}$/.test(split.secondaryId))) ||
+      !Number.isFinite(split.ratio) || split.ratio < 0.25 || split.ratio > 0.75) throw new Error('Invalid split layout');
+  const mutedServices = input.mutedServices ?? [];
+  if (!Array.isArray(mutedServices) || mutedServices.length > 100 || new Set(mutedServices).size !== mutedServices.length || mutedServices.some(id => typeof id !== 'string' || !/^[\w-]{1,128}$/.test(id))) throw new Error('Invalid muted services');
+  return { ...input, split:{...split}, mutedServices:[...mutedServices], seed: input.seed.toLowerCase(), cardOrder: [...input.cardOrder], hiddenWorkspaces: [...input.hiddenWorkspaces] };
 }
 export function orderedCards(data, preferences) {
   const ids = ['global', ...data.workspaces.map(w => w.id)];

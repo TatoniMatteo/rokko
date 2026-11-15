@@ -12,6 +12,7 @@ export function KeyboardShortcutsPage() {
       </div>
       <section className="settings-card">
         <dl className="shortcut-list">
+          <dt><kbd>Ctrl + K</kbd></dt><dd>{t('Quick switch')}</dd>
           <dt>
             <kbd>{t('Ctrl + Tab')}</kbd>
           </dt>

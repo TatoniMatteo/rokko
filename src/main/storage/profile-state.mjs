@@ -117,6 +117,8 @@ export function validateProfile(data, preferences, activeAppId = null) {
   nextPreferences.hiddenWorkspaces = nextPreferences.hiddenWorkspaces.filter((id) =>
     workspaces.has(id),
   );
+  nextPreferences.mutedServices = nextPreferences.mutedServices.filter(id => ids.has(id));
+  if (!ids.has(nextPreferences.split.secondaryId)) nextPreferences.split.secondaryId = null;
   return {
     data: structuredClone({
       version: 1,

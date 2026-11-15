@@ -1,3 +1,7 @@
+import { SplitSurface, SplitToolbar } from './components/SplitSurface';
+import { ServiceTools } from './components/ServiceTools';
+import { ConfigurationPage } from './pages/ConfigurationPage';
+import { QuickSwitchPage } from './pages/QuickSwitchPage';
 import { PermissionsPage } from './pages/PermissionsPage';
 import { DownloadsPage } from './pages/DownloadsPage';
 import { SuspendedServicePage } from './pages/SuspendedServicePage';
@@ -44,6 +48,8 @@ const initial: AppSnapshot = {
 };
 
 type Page =
+  | 'configuration'
+  | 'quick'
   | 'permissions'
   | 'downloads'
   | 'home'
@@ -62,6 +68,8 @@ export function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot>(initial);
   const [appStates, setAppStates] = useState<Record<string, AppLoadState>>({});
   const [page, setPage] = useState<Page>('dashboard');
+  const quickReturn = useRef<Page>('dashboard');
+  const quickOrigin = useRef<HTMLElement | null>(null);
   const [managementWorkspace, setManagementWorkspace] = useState<string | undefined>();
   const [editReturn, setEditReturn] = useState<Page>('services');
   const [removalRequested, setRemovalRequested] = useState(0);
@@ -80,6 +88,7 @@ export function App() {
   const navigationOrigin = useRef<HTMLElement | null>(null);
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const active = snapshot.data.apps.find((app) => app.id === snapshot.activeAppId);
+  const secondary = snapshot.data.apps.find(a=>a.id===snapshot.preferences?.split.secondaryId && a.id!==active?.id && (!a.workspaceId || !snapshot.preferences?.hiddenWorkspaces.includes(a.workspaceId)));
   const appState = active ? appStates[active.id] : undefined;
   const serviceSuspended = Boolean(active && snapshot.suspendedIds?.includes(active.id));
   const failure = appState?.status === 'failed' ? loadError(appState.error ?? -2) : null;
@@ -199,6 +208,22 @@ export function App() {
       setPage(nextPage === 'manage' ? 'services' : nextPage);
     });
   }
+  function openQuickSwitch() {
+    if (page === 'quick') return;
+    requestNavigation(() => {
+      quickReturn.current = page;
+      quickOrigin.current = document.activeElement as HTMLElement | null;
+      setPage('quick');
+    });
+  }
+  function closeQuickSwitch() {
+    setPage(quickReturn.current);
+    requestAnimationFrame(() => {
+      if (quickReturn.current === 'home') void window.rokko.focusService();
+      else if (quickOrigin.current?.isConnected) quickOrigin.current.focus();
+    });
+  }
+  useEffect(() => window.rokko.onQuickSwitch(openQuickSwitch));
   function openApp(template?: ServiceTemplate, existing?: WebApp, remove = false) {
     requestNavigation(() => {
       setRemovalRequested((value) => (remove ? value + 1 : 0));
@@ -353,6 +378,7 @@ export function App() {
         <div className="app-shell">
           <main className="work-area">
             <div className="web-content" ref={contentRef}>
+
               <RecoveryPage
                 recovery={snapshot.recovery}
                 busy={busy}
@@ -382,6 +408,7 @@ export function App() {
             })
           }
           onSettings={() => navigate('settings')}
+          onSearch={openQuickSwitch}
           onApp={(id) =>
             requestNavigation(() => {
               void run(() => window.rokko.selectApp(id), 'home');
@@ -488,7 +515,13 @@ export function App() {
               </button>
             </div>
           )}
+          {page === 'home' && active && secondary && <SplitToolbar primary={active} secondary={secondary}
+            onClose={()=>void run(()=>window.rokko.setSplit(null,savedPreferences.split.ratio))} />}
           <div className="web-content" ref={contentRef}>
+            {page === 'quick' && <QuickSwitchPage data={snapshot.data}
+              onClose={closeQuickSwitch} onCommand={navigate}
+              onService={service => void openService(service)}
+              onWorkspace={workspace => void run(() => window.rokko.selectWorkspace(workspace.id), 'dashboard')} />}
             {(page === 'dashboard' || (page === 'home' && !active)) && (
               <DashboardPage
                 data={snapshot.data}
@@ -559,6 +592,7 @@ export function App() {
                 onPermissions={() => navigate('permissions')}
                 onDownloads={() => navigate('downloads')}
                 onShortcuts={() => navigate('shortcuts')}
+                onConfiguration={() => navigate('configuration')}
                 onImport={() => navigate('import')}
                 onManageServices={() => manageServices()}
                 onManageWorkspaces={() => navigate('workspaces')}
@@ -567,6 +601,7 @@ export function App() {
             {page === 'controls' && active && (
               <ServiceControlsPage
                 name={active.name}
+                tools={<ServiceTools snapshot={{...snapshot,appStates}} onUpdate={setSnapshot}/>}
                 suspended={serviceSuspended}
                 onPermissions={() => navigate('permissions')}
                 onDownloads={() => navigate('downloads')}
@@ -599,13 +634,13 @@ export function App() {
                 onEdit={() => openApp(undefined, active)}
               />
             )}
-            {page === 'home' && active && serviceSuspended && (
+            {page === 'home' && active && !secondary && serviceSuspended && (
               <SuspendedServicePage
                 busy={busy}
                 onResume={() => void run(() => window.rokko.resumeService(active.id), 'home')}
               />
             )}
-            {page === 'home' && active && !serviceSuspended && failure && (
+            {page === 'home' && active && !secondary && !serviceSuspended && failure && (
               <ServiceErrorPage
                 failure={failure}
                 onRetry={() => void browserAction(() => window.rokko.reload())}
@@ -622,6 +657,8 @@ export function App() {
                 onRevoke={(id) => void run(() => window.rokko.revokePermissions(id))}
               />
             )}
+            {page === 'home' && active && secondary && <SplitSurface key={active.id+secondary.id} snapshot={{...snapshot,appStates}} primary={active} secondary={secondary} onUpdate={setSnapshot} onError={e=>setError(errorMessage(e))}/>}
+            {page === 'configuration' && <ConfigurationPage onImported={setSnapshot} />}
             {page === 'downloads' && <DownloadsPage services={snapshot.data.apps} />}
             {page === 'shortcuts' && <KeyboardShortcutsPage />}
             {page === 'import' && (

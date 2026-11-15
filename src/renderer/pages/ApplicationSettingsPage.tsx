@@ -19,6 +19,7 @@ export function ApplicationSettingsPage({
   onDownloads,
   onShortcuts,
   onImport,
+  onConfiguration,
   onManageServices,
   onManageWorkspaces,
 }: {
@@ -33,6 +34,7 @@ export function ApplicationSettingsPage({
   onDownloads: () => void;
   onShortcuts: () => void;
   onImport: () => void;
+  onConfiguration: () => void;
   onManageServices: () => void;
   onManageWorkspaces: () => void;
 }) {
@@ -167,6 +169,7 @@ export function ApplicationSettingsPage({
           {[
             [t('Service permissions'), onPermissions],
             [t('Downloads'), onDownloads],
+            [t('Import and export'), onConfiguration],
             [t('Configured services'), onManageServices],
             [t('All workspaces'), onManageWorkspaces],
             [t('Import from Rambox'), onImport],

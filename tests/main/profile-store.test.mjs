@@ -170,3 +170,19 @@ test('recovery rechecks future versions', t => {
   const before=readFileSync(path);assert.throws(()=>recoverProfile(directory,'new','corrupt'),error=>error.kind==='future');
   assert.deepEqual(readFileSync(path),before);
 });
+
+test('configuration transaction rolls back both parts', t => {
+  const {directory,profile}=fixture(t);
+  const store=new ProfileStore(directory,{fault:point=>{if(point==='save-rows')throw Error('disk failure');}});
+  const next=structuredClone(profile.data);next.workspaces[0].name='Changed';
+  assert.throws(()=>store.saveConfiguration(next,{...profile.preferences,theme:'dark'}));
+  assert.deepEqual(store.read(),profile);store.close();
+  const reopened=new ProfileStore(directory);assert.deepEqual(reopened.read(),profile);reopened.close();
+});
+test('legacy export omits new view preferences', t => {
+  const {directory,profile}=fixture(t);const store=new ProfileStore(directory);
+  store.savePreferences({...profile.preferences,mutedServices:['global'],split:{secondaryId:'first',ratio:.6}});
+  const exported=store.exportLegacy(directory);
+  const preferences=JSON.parse(readFileSync(join(exported,'rokko-preferences.json'),'utf8'));
+  assert.equal(preferences.split,undefined);assert.equal(preferences.mutedServices,undefined);store.close();
+});
