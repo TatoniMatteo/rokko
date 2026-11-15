@@ -107,7 +107,7 @@ try {
     async () => (await ui.state()).preferences.language === 'en',
     'saved preferences',
   );
-  assert.ok(await ui.run('document.body.innerText.includes("Restart required")'));
+  await eventually(() => ui.run('document.body.innerText.includes("Restart required")'), 'restart notice rendered');
   await ui.activate('Reset theme');
   assert.equal(await ui.run('document.querySelector("#theme").value'), 'system');
   assert.equal(await ui.run('document.querySelector("#language").value'), 'en');
