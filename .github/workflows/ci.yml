@@ -30,7 +30,7 @@ jobs:
           path: dist/security/
           retention-days: 14
       - name: Install Linux smoke dependencies
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y xvfb xauth dbus-x11 apparmor openssl libgtk-3-0t64 libnss3 libgbm1 libasound2t64
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y xvfb xauth dbus-x11 openbox x11-utils apparmor openssl libgtk-3-0t64 libnss3 libgbm1 libasound2t64
       - name: Prepare targeted Electron sandbox profile
         id: sandbox
         run: |
@@ -48,32 +48,32 @@ jobs:
           fi
       - name: Smoke sandboxed Linux UI and restart persistence
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm smoke:linux
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm smoke:linux
           --executable node_modules/electron/dist/electron --app .
           --output .codex/tasks/ci-smoke/results --x11
       - name: Check SQLite migration, sessions and recovery
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:profile
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm qa:profile
           --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/profile --x11
       - name: Check interface, keyboard, themes and localization
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:interface
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm qa:interface
           --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/interface --x11
       - name: Check real TLS failure, timeout and service languages
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:connections
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm qa:connections
           --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/connections --x11
       - name: Check permissions, recovery, downloads and private diagnostics
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- env ROKKO_QA_X11_SCREEN=1
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh env ROKKO_QA_X11_SCREEN=1
           corepack pnpm qa:reliability --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/reliability --x11
       - name: Check quick switch, split views and configuration import/export
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:productivity
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm qa:productivity
           --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/productivity --x11
       - name: Unload temporary sandbox profile

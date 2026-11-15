@@ -177,7 +177,6 @@ export async function createRuntime(defaultOutput, { isolateDesktop = false } = 
         pid: child.pid,
         screenshot: async () => {
           await command('Page.bringToFront');
-          await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
           const shot = await command('Page.captureScreenshot', { format: 'png', fromSurface: false }, 15000);
           await writeFile(join(output, `${phase}.png`), Buffer.from(shot.data, 'base64'));
         },

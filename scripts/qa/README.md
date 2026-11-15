@@ -62,3 +62,8 @@ cache/reset con cookie e peer conservati, export/import con anteprima, reimport 
 rifiuto di file non validi e layout persistente al riavvio. Non usa account reali.
 I dialoghi per import/export sono indirizzati a file del profilo temporaneo; il chooser nativo
 resta una verifica distinta. Nessun watcher o componente QA viene incluso nel pacchetto.
+
+La CI Xvfb usa `sh scripts/qa/x11-session.sh COMANDO ...` su un bus/display isolato, con
+Openbox e xprop. Il window manager invia gli eventi di visibilità e attivazione necessari
+all'acquisizione dei frame; il wrapper arresta soltanto il processo che ha avviato.
+Non modifica la shell grafica dell'utente né le impostazioni di throttling del prodotto.
