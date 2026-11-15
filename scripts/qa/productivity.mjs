@@ -66,6 +66,7 @@ try {
     const state = await ui.state();
     return state.data.apps.find((a) => a.id === state.activeAppId)?.name === 'Alpha';
   }, 'switch from search');
+  await eventually(() => ui.run('!document.querySelector("#quick-search")'), 'service route after switch');
   await ui.activate('Ricerca rapida');
   await ui.fill('#quick-search', 'nothing matches');
   assert.equal(await ui.run('document.querySelectorAll("[role=option]").length'), 0);

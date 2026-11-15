@@ -88,6 +88,8 @@ uscire devono restare raggiungibili. Il menu tray offre mostra/nascondi/esci; ch
 finestra termina sempre l’app. Una seconda apertura ripristina la finestra nascosta o minimizzata.
 Il permesso notifiche non garantisce banner se l'OS applica DND; Web Push resta una capacità
 separata e il lavoro sulle notifiche è differito. La matrice non lo riattiva.
-DEB/AppImage e installazioni pulite sono verifiche di rilascio separate, attualmente differite.
+DEB/AppImage e installazioni pulite sono verifiche separate: stato e criteri in [RELEASE.md](RELEASE.md).
 
 Per baseline e budget delle risorse usare la [procedura riproducibile](../scripts/qa/README.md).
+
+Per triage e pubblicazione seguire [RELEASE.md](RELEASE.md); le indicazioni per gli utenti e i limiti sono in [LINUX.md](LINUX.md).

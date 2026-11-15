@@ -1,0 +1,4 @@
+{
+  "allowed": ["MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "Python-2.0", "CC-BY-4.0", "BlueOak-1.0.0", "MPL-2.0", "WTFPL OR ISC", "WTFPL", "0BSD", "(MIT OR CC0-1.0)", "(WTFPL OR MIT)"],
+  "note": "Installed npm package declarations reviewed for inventory. This does not replace notices, source obligations, Electron/Chromium third-party licenses or asset rights. Unknown/new declarations fail the check."
+}

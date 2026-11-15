@@ -44,6 +44,14 @@ export async function verifyManifest(directory) {
   if (JSON.stringify(files) !== JSON.stringify([...expected].sort())) {
     throw new Error('Unexpected packages in artifact directory');
   }
+  if (manifest.reports !== undefined) {
+    const expectedReports=['sbom.cdx.json','licenses.json','THIRD-PARTY-NOTICES.txt'];
+    if (!Array.isArray(manifest.reports) || manifest.reports.length !== expectedReports.length || manifest.reports.some((report,index)=>report.name!==expectedReports[index])) throw new Error('Unexpected supply-chain reports');
+    for (const report of manifest.reports) {
+      const actual=await describeArtifact(directory,report.name);
+      if (actual.sha256!==report.sha256 || actual.size!==report.size) throw new Error('Supply-chain report integrity failed');
+    }
+  }
   for (const artifact of manifest.artifacts) {
     const actual = await describeArtifact(directory, artifact.name);
     if (actual.sha256 !== artifact.sha256 || actual.size !== artifact.size) {

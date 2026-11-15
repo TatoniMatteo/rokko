@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { artifactNames, writeManifest, verifyManifest } from './artifacts.mjs';
+import { artifactNames, writeManifest, verifyManifest, describeArtifact } from './artifacts.mjs';
 import { inspectAppImage } from './inspect-appimage.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -31,7 +31,11 @@ for (const name of names) {
     await inspectAppImage(join(output, name), join(root, 'build/linux/AppRun'), pkg.desktopName);
   }
 }
+const reportNames=['sbom.cdx.json','licenses.json','THIRD-PARTY-NOTICES.txt'];
+for (const name of reportNames) copyFileSync(join(root,'dist/security',name),join(output,name));
+const reports=await Promise.all(reportNames.map(name=>describeArtifact(output,name)));
 const manifest = await writeManifest(output, {
+  reports,
   version: pkg.version, platform: 'linux', arch, targets,
   commit: commit.status === 0 ? commit.stdout.trim() : null,
   dirty: status.status !== 0 || Boolean(status.stdout.trim()),

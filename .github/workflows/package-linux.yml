@@ -78,5 +78,8 @@ jobs:
             dist/linux-${{ matrix.arch }}/manifest.json
             dist/linux-${{ matrix.arch }}/SHA256SUMS.txt
             dist/linux-${{ matrix.arch }}/BUILD-NOTES.txt
+            dist/linux-${{ matrix.arch }}/sbom.cdx.json
+            dist/linux-${{ matrix.arch }}/licenses.json
+            dist/linux-${{ matrix.arch }}/THIRD-PARTY-NOTICES.txt
           if-no-files-found: error
           retention-days: 14

@@ -15,7 +15,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --test tests/*/*.test.mjs",
-    "package:linux": "pnpm build && node scripts/release/package-linux.mjs",
+    "package:linux": "pnpm build && pnpm supply-chain && node scripts/release/package-linux.mjs",
     "dev:raw": "electron-vite dev",
     "linux:doctor": "node scripts/linux/dev.mjs --doctor",
     "linux:setup": "node scripts/linux/dev.mjs --setup",
@@ -31,7 +31,8 @@
     "qa:interface": "node scripts/qa/interface.mjs --app scripts/qa/profile-entry.cjs",
     "qa:connections": "node scripts/qa/connections.mjs --app scripts/qa/profile-entry.cjs",
     "qa:reliability": "node scripts/qa/reliability.mjs --app scripts/qa/reliability-entry.cjs",
-    "qa:productivity": "node scripts/qa/productivity.mjs --app scripts/qa/reliability-entry.cjs"
+    "qa:productivity": "node scripts/qa/productivity.mjs --app scripts/qa/reliability-entry.cjs",
+    "supply-chain": "node scripts/release/supply-chain.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
@@ -76,8 +77,27 @@
     "afterPack": "build/hooks/after-pack.cjs",
     "appImage": {
       "executableArgs": []
-    }
+    },
+    "extraResources": [
+      {
+        "from": "LICENSE",
+        "to": "licenses/ROKKO-LICENSE.txt"
+      },
+      {
+        "from": "assets/fonts/ONEST-LICENSE.txt",
+        "to": "licenses/ONEST-LICENSE.txt"
+      },
+      {
+        "from": "assets/icons/FONT-AWESOME-LICENSE.txt",
+        "to": "licenses/FONT-AWESOME-LICENSE.txt"
+      },
+      {
+        "from": "dist/security/THIRD-PARTY-NOTICES.txt",
+        "to": "licenses/THIRD-PARTY-NOTICES.txt"
+      }
+    ]
   },
   "packageManager": "pnpm@12.4.1",
-  "desktopName": "dev.rokko.desktop"
+  "desktopName": "dev.rokko.desktop",
+  "homepage": "https://github.com/TatoniMatteo/rokko"
 }
