@@ -131,12 +131,12 @@ export async function createRuntime(defaultOutput, { isolateDesktop = false } = 
         const response = JSON.parse(data);
         waiting.get(response.id)?.(response);
       });
-      async function command(method, params) {
+      async function command(method, params, timeout = 5000) {
         const id = ++next;
         const result = new Promise((resolve) => waiting.set(id, resolve));
         socket.send(JSON.stringify({ id, method, params }));
         try {
-          const response = await bounded(result, method);
+          const response = await bounded(result, method, timeout);
           if (response.error) throw new Error(JSON.stringify(response.error));
           return response.result;
         } finally {
@@ -176,7 +176,7 @@ export async function createRuntime(defaultOutput, { isolateDesktop = false } = 
         browserUrl: url.href,
         pid: child.pid,
         screenshot: async () => {
-          const shot = await command('Page.captureScreenshot', { format: 'png' });
+          const shot = await command('Page.captureScreenshot', { format: 'png', fromSurface: false }, 15000);
           await writeFile(join(output, `${phase}.png`), Buffer.from(shot.data, 'base64'));
         },
       };
