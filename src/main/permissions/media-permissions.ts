@@ -18,11 +18,16 @@ export class MediaPermissions {
   private pending = new Map<string, Pending>();
   private grants = new Map<WebContents, Grant>();
   private screenTickets = new Set<WebContents>();
+  private owner: (contents: WebContents) => Owner | undefined;
+  private changed: () => void;
+  private log: (event: string) => void;
   constructor(
-    private owner: (contents: WebContents) => Owner | undefined,
-    private changed: () => void,
-    private log: (event: string) => void,
-  ) {}
+    owner: (contents: WebContents) => Owner | undefined,
+    changed: () => void,
+    log: (event: string) => void,
+  ) {
+    this.owner = owner; this.changed = changed; this.log = log;
+  }
   list(): PermissionState {
     return {
       requests: [...this.pending.values()].map((p) => ({ ...p.info })),
