@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { errorMessage } from '../preferences/i18n';
 import { SeedColorPicker } from '../components/SeedColorPicker';
 import { Button, Card } from '../components/ui';
-import type { Preferences } from '../../shared/preferences/preferences.mjs';
+import { defaultPreferences, type Preferences } from '../../shared/preferences/preferences.mjs';
 import { useI18n } from '../preferences/i18n';
 import fontLicense from '../../../assets/fonts/ONEST-LICENSE.txt?raw';
 import iconLicense from '../../../assets/icons/FONT-AWESOME-LICENSE.txt?raw';
@@ -10,6 +10,9 @@ export function ApplicationSettingsPage({
   preferences,
   browserLanguage,
   busy,
+  dirty,
+  onSave,
+  onCancel,
   onChange,
   onShortcuts,
   onImport,
@@ -19,6 +22,9 @@ export function ApplicationSettingsPage({
   preferences: Preferences;
   browserLanguage: string;
   busy: boolean;
+  dirty: boolean;
+  onSave: () => void;
+  onCancel: () => void;
   onChange: (value: Preferences) => void;
   onShortcuts: () => void;
   onImport: () => void;
@@ -48,7 +54,36 @@ export function ApplicationSettingsPage({
           <p>{t('Make Rokko yours.')}</p>
         </div>
       </div>
-      <div className="settings-grid preference-grid">
+      <form
+        className="settings-grid preference-grid"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+      >
+        <Card className="full-width theme-studio" aria-labelledby="theme-studio-title">
+          <h2 id="theme-studio-title">{t('Theme Studio')}</h2>
+          <p className="page-note">
+            {t('Preview your colors. Save to apply them, or cancel to keep your current settings.')}
+          </p>
+          <div className="theme-preview" aria-label={t('Theme preview')}>
+            <div>
+              <strong>{t('Your space, your way.')}</strong>
+              <p>{t('All your services. Just the workspaces you need.')}</p>
+            </div>
+            <span className="theme-preview-accent">{t('Accent')}</span>
+          </div>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              const defaults = defaultPreferences();
+              onChange({ ...preferences, theme: defaults.theme, seed: defaults.seed });
+            }}
+          >
+            {t('Reset theme')}
+          </Button>
+        </Card>
         <div>
           <label htmlFor="theme">{t('Theme')}</label>
           <select
@@ -99,7 +134,18 @@ export function ApplicationSettingsPage({
             <option value="en">English</option>
           </select>
         </div>
-        {browserLanguage !== preferences.language && (
+        <div className="full-width page-actions">
+          <Button type="submit" disabled={busy || !dirty} aria-busy={busy}>
+            {t('Save changes')}
+          </Button>
+          <Button variant="secondary" disabled={busy || !dirty} onClick={onCancel}>
+            {t('Cancel')}
+          </Button>
+          <span className="page-note" role="status">
+            {t(dirty ? 'Preview — changes are not saved yet.' : 'Your settings are saved.')}
+          </span>
+        </div>
+        {!dirty && browserLanguage !== preferences.language && (
           <Card className="full-width" role="status">
             <h2>{t('Restart required')}</h2>
             <p className="page-note">
@@ -169,7 +215,7 @@ export function ApplicationSettingsPage({
             <pre className="license">{iconLicense}</pre>
           </details>
         </Card>
-      </div>
+      </form>
     </div>
   );
 }

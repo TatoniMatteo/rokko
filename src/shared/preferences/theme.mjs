@@ -27,3 +27,38 @@ export function themeTokens(seed, dark) {
     border: legible(mix(seed, panel, .8), 3), 'on-accent': contrast('#ffffff', accent) >= 4.5 ? '#ffffff' : '#101621',
     danger: legible('#c53d54', 4.5), 'danger-border': legible('#c53d54', 3), 'icon-surface': '#f1f4fa' };
 }
+
+// Saved design palettes can change independently of the generator. Check their final surfaces too.
+export function accessibleTheme(seed, dark, overrides = {}) {
+  const fallback = themeTokens(seed, dark);
+  const tokens = { ...fallback, ...overrides };
+  const surfaces = ['bg', 'panel', 'panel2', 'accent-container'].map((key) => tokens[key]);
+  const readable = (value, ratio) => surfaces.every((surface) => contrast(value, surface) >= ratio);
+  const extremes = ['#000000', '#ffffff'];
+  const target = extremes.find((value) => readable(value, 4.5));
+  if (!target) return fallback;
+  for (const [key, ratio] of Object.entries({
+    text: 4.5,
+    muted: 4.5,
+    accent: 4.5,
+    danger: 4.5,
+    border: 3,
+    'danger-border': 3,
+  })) {
+    const original = tokens[key];
+    for (let step = 0; step <= 100; step++) {
+      const next = mix(original, target, step / 100);
+      if (readable(next, ratio)) {
+        tokens[key] = next;
+        break;
+      }
+    }
+  }
+  if (contrast(tokens['on-accent'], tokens.accent) < 4.5) {
+    tokens['on-accent'] = extremes.find((value) => contrast(value, tokens.accent) >= 4.5);
+  }
+  if (tokens['accent-hover'] && contrast(tokens['on-accent'], tokens['accent-hover']) < 4.5) {
+    tokens['accent-hover'] = tokens.accent;
+  }
+  return tokens;
+}

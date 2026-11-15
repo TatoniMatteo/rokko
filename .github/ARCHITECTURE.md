@@ -105,3 +105,16 @@ Non sostituire un database attivo con copie del file mentre Rokko è aperto.
 Prova riproducibile: `pnpm qa:profile --executable node_modules/electron/dist/electron` dopo il setup
 Linux e la build. Usa esclusivamente account sintetici e un profilo temporaneo; non verifica login
 reali o Web Push. Migrazione/fault injection, schema futuro e rollback hanno test su SQLite reale.
+
+## Preferenze e accessibilità
+
+Le impostazioni generali mantengono una bozza nel renderer: l'anteprima di tema, colore, lingua e
+barra non scrive sul profilo. Salva applica la bozza validata dal main; Annulla ripristina i valori
+persistiti. La navigazione avvisa inline delle modifiche non salvate. Il ripristino del tema cambia
+solo modalità e colore, preservando lingua e organizzazione. La lingua dei siti si applica al riavvio;
+le preferenze dei singoli provider possono prevalere.
+
+Il generatore puro corregge anche il contrasto finale delle palette salvate in FigCraft. Nessun
+polling o calcolo per frame: i token vengono applicati solo quando cambia il tema/snapshot.
+La barra supporta Tab, frecce secondo l'orientamento, Home/End e menù dei servizi da tastiera.
+Il riordino mantiene trascinamento, attivazione del pulsante e annunci con istruzioni associate.

@@ -172,7 +172,7 @@ export function AppSettingsPage({
               id="app-icon"
               type="file"
               accept="image/png,image/jpeg,image/webp"
-              disabled={readingIcon}
+              disabled={busy || readingIcon}
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
@@ -190,6 +190,7 @@ export function AppSettingsPage({
             <button
               type="button"
               className="text-button"
+              disabled={busy || readingIcon}
               onClick={() => onDraft({ ...draft, icon: null })}
             >
               {t('Use website favicon')}
@@ -202,7 +203,7 @@ export function AppSettingsPage({
               id="app-shared-session"
               type="checkbox"
               checked={Boolean(draft.workspaceId !== null && draft.shareWorkspaceSession)}
-              disabled={busy || draft.workspaceId === null}
+              disabled={busy || readingIcon || draft.workspaceId === null}
               onChange={(event) =>
                 onDraft({ ...draft, shareWorkspaceSession: event.target.checked })
               }
@@ -220,7 +221,7 @@ export function AppSettingsPage({
             <input
               id="app-notifications"
               type="checkbox"
-              disabled={!origin}
+              disabled={busy || readingIcon || !origin}
               checked={Boolean(origin && draft.notificationOrigin === origin)}
               onChange={(event) => {
                 setTestStatus('');

@@ -28,3 +28,11 @@ cookie persistenti privati/condivisi/globali, trasferimenti, ordine, policy HTTP
 riavvio, DB corrotto e rifiuto di formati futuri. Usa una entry di test esclusa dal pacchetto;
 la cartella nativa di esportazione viene simulata dentro il profilo temporaneo. Non usa account
 personali, non modifica partizioni reali e registra la versione effettiva del runtime.
+
+## Interfaccia, tastiera e localizzazione
+
+Dopo la build, `pnpm qa:interface --executable node_modules/electron/dist/electron` prova primo avvio, aggiunta/modifica/rimozione da tastiera, icona custom, annullamento dei draft, preferenze con salva/annulla, ripristino del tema, riordino e riavvio. Controlla nomi e landmark nell'albero accessibile, focus visibile, barra affollata sui quattro lati e layout a 820/1280/1920 px con scaling emulato 100/125/200%. Salva screenshot per tema/lato: sono artefatti da confrontare, non una certificazione automatica di ogni pixel. Come gli altri probe usa un profilo temporaneo, eliminato al termine.
+
+`pnpm qa:connections --executable node_modules/electron/dist/electron` richiede OpenSSL. Induce un vero rifiuto TLS e un vero timeout di handshake (~30 secondi) su server locali, verifica riprova/cronologia e conservazione della sessione. La risposta di recupero dal timeout è sintetica. In una seconda esecuzione isolata autorizza soltanto la chiave SPKI del certificato effimero del test per verificare sul server l'header Accept-Language di servizi globali, privati e condivisi, oltre a navigator.language dopo il riavvio. Non modifica policy TLS o certificati del prodotto/del sistema.
+
+Entrambi accettano `--x11` e vengono eseguiti in CI con Electron sandboxato. La prova con screen reader resta distinta dall'albero CDP: nella verifica locale con Orca su bus/display isolati sono controllati i testi generati per etichette IT/EN, errori e istruzioni di riordino; l'uscita audio e i display braille non sono certificati.

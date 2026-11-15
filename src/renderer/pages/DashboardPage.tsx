@@ -25,6 +25,8 @@ export function DashboardPage({ data, preferences, busy, onPreferences, onMoveAp
       <Button variant="secondary" className="secondary" onClick={onManageWorkspaces}>{t('All workspaces')}</Button></div>
     {!data.apps.length && <Card className="empty-state"><h2>{t('Where would you like to start?')}</h2>
       <p>{t('Choose a service, add your own website, or import your services from Rambox.')}</p>
+      <p className="page-note">{t('Group services in workspaces, or keep them always visible. You can change this later.')}</p>
+      <p className="page-note">{t('No Rokko account is needed. You sign in directly on each website; login data stays on this device. Notifications are optional and keep enabled services running in the background.')}</p>
       <div className="page-actions"><Button onClick={onCatalog}>{t('Choose a service')}</Button>
         <Button variant="secondary" onClick={onImport}>{t('Import from Rambox')}</Button></div></Card>}
     <div className="workspace-overview">{cards.map(id => {

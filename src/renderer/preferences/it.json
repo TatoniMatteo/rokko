@@ -274,5 +274,16 @@
   "Dismiss": "Chiudi avviso",
   "Could not complete recovery. Your previous files are preserved.": "Non è stato possibile completare il recupero. I file precedenti sono conservati.",
   "Could not export the configuration. Your saved data is unchanged.": "Impossibile esportare la configurazione. I dati salvati sono invariati.",
-  "Rokko is closing": "Rokko si sta chiudendo"
+  "Rokko is closing": "Rokko si sta chiudendo",
+  "Accent": "Accento",
+  "Theme Studio": "Studio del tema",
+  "Theme preview": "Anteprima del tema",
+  "Preview your colors. Save to apply them, or cancel to keep your current settings.": "Prova i colori. Salva per applicarli oppure annulla per mantenere le impostazioni attuali.",
+  "Reset theme": "Ripristina tema",
+  "Preview — changes are not saved yet.": "Anteprima: le modifiche non sono ancora salvate.",
+  "Your settings are saved.": "Le impostazioni sono salvate.",
+  "Group services in workspaces, or keep them always visible. You can change this later.": "Raggruppa i servizi nei workspace oppure mantienili sempre visibili. Potrai cambiare questa scelta in seguito.",
+  "No Rokko account is needed. You sign in directly on each website; login data stays on this device. Notifications are optional and keep enabled services running in the background.": "Non serve un account Rokko. Accedi direttamente sui siti: i dati di accesso restano su questo dispositivo. Le notifiche sono facoltative e mantengono attivi in background i servizi abilitati.",
+  "{name} placed.": "{name} posizionato.",
+  "{name} picked up. Use arrow keys to move.": "{name} selezionato. Usa le frecce per spostarlo."
 }

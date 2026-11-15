@@ -69,6 +69,7 @@ export function WorkspaceSettingsPage({
           <TextField
             label={t('Workspace name')}
             id="workspace-name"
+            disabled={busy}
             error={nameError}
             value={name}
             onChange={(event) => {
