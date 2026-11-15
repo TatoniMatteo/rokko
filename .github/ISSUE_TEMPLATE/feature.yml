@@ -1,0 +1,15 @@
+name: Funzionalità
+description: Proponi un comportamento utile.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Quale problema risolve?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Comportamento desiderato
+    validations:
+      required: true

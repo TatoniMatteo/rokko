@@ -29,7 +29,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install build-only packaging tools
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y librsvg2-bin squashfs-tools xvfb xauth dbus-x11 apparmor libgtk-3-0t64 libnss3 libgbm1 libasound2t64
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y librsvg2-bin squashfs-tools xvfb xauth dbus-x11 openbox x11-utils apparmor libgtk-3-0t64 libnss3 libgbm1 libasound2t64
       - run: npm install --global corepack@0.36.0
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm check
@@ -55,7 +55,7 @@ jobs:
           fi
       - name: Check packaged UI and restart persistence on virtual X11
         run: >-
-          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm smoke:linux
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm smoke:linux
           --prepared .codex/tasks/linux-release/prepared-smoke/prepared.json
           --output .codex/tasks/linux-release/smoke-output --x11
       - name: Unload test profile
@@ -78,5 +78,8 @@ jobs:
             dist/linux-${{ matrix.arch }}/manifest.json
             dist/linux-${{ matrix.arch }}/SHA256SUMS.txt
             dist/linux-${{ matrix.arch }}/BUILD-NOTES.txt
+            dist/linux-${{ matrix.arch }}/sbom.cdx.json
+            dist/linux-${{ matrix.arch }}/licenses.json
+            dist/linux-${{ matrix.arch }}/THIRD-PARTY-NOTICES.txt
           if-no-files-found: error
           retention-days: 14

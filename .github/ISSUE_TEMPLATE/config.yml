@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Vulnerabilità e dati sensibili
+    url: https://github.com/TatoniMatteo/rokko/security/advisories/new
+    about: Segnala privatamente; non includere credenziali nelle issue pubbliche.

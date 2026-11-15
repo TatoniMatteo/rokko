@@ -109,3 +109,11 @@ test('duplicate accounts survive import', () => {
   );
   assert.equal(twice.skipped, 3);
 });
+
+test('ambiguous source workspaces never merge sessions', () => {
+  const profile=fixture(), document=exportConfiguration(profile.data,profile.preferences);
+  document.workspaces.push({key:'another-workspace',name:document.workspaces[0].name});
+  const before=structuredClone(profile);
+  assert.throws(()=>planConfigurationImport(profile.data,profile.preferences,document,options,()=> 'new'),/ambiguous/);
+  assert.deepEqual(profile,before);
+});

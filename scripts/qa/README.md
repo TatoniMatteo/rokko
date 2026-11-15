@@ -50,7 +50,7 @@ La condivisione schermo seleziona esplicitamente una sorgente del solo display v
 Il prodotto conserva la policy del portale Wayland. Il test non autorizza dispositivi nell'app normale.
 
 La prova aggiuntiva del chooser nativo richiede `ROKKO_QA_NATIVE_CHOOSER=1`, Python GI/AT-SPI
-ed è dipendente dal portale desktop: il percorso di sostituzione file rimane da convalidare.
+ed è dipendente dal portale desktop. Annullamento e sostituzione sono stati verificati con il chooser Nautilus su display/bus isolati.
 La CI verifica DownloadItem e opzioni del dialogo, non certifica ogni chooser di sistema.
 
 ## Produttività
@@ -62,3 +62,8 @@ cache/reset con cookie e peer conservati, export/import con anteprima, reimport 
 rifiuto di file non validi e layout persistente al riavvio. Non usa account reali.
 I dialoghi per import/export sono indirizzati a file del profilo temporaneo; il chooser nativo
 resta una verifica distinta. Nessun watcher o componente QA viene incluso nel pacchetto.
+
+La CI Xvfb usa `sh scripts/qa/x11-session.sh COMANDO ...` su un bus/display isolato, con
+Openbox e xprop. Il window manager invia gli eventi di visibilità e attivazione necessari
+all'acquisizione dei frame; il wrapper arresta soltanto il processo che ha avviato.
+Non modifica la shell grafica dell'utente né le impostazioni di throttling del prodotto.

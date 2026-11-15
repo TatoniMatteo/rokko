@@ -1,0 +1,30 @@
+name: Bug
+description: Segnala un problema riproducibile senza dati personali.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Versione o commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Linux, desktop e architettura
+      placeholder: Ubuntu 24.04, GNOME Wayland, x86_64, scala 125%
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Passi, risultato atteso e risultato osservato
+      description: Usa servizi o dati sintetici. Non allegare profili Chromium, cookie, token o URL di login.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostica facoltativa
+      description: Rivedi il report locale prima di allegarlo. Per vulnerabilità usa il canale privato in SECURITY.md.

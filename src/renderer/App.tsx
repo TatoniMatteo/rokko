@@ -70,6 +70,7 @@ export function App() {
   const [page, setPage] = useState<Page>('dashboard');
   const quickReturn = useRef<Page>('dashboard');
   const quickOrigin = useRef<HTMLElement | null>(null);
+  const restoreQuickFocus = useRef(false);
   const [managementWorkspace, setManagementWorkspace] = useState<string | undefined>();
   const [editReturn, setEditReturn] = useState<Page>('services');
   const [removalRequested, setRemovalRequested] = useState(0);
@@ -217,13 +218,19 @@ export function App() {
     });
   }
   function closeQuickSwitch() {
+    restoreQuickFocus.current = true;
     setPage(quickReturn.current);
-    requestAnimationFrame(() => {
-      if (quickReturn.current === 'home') void window.rokko.focusService();
-      else if (quickOrigin.current?.isConnected) quickOrigin.current.focus();
-    });
   }
   useEffect(() => window.rokko.onQuickSwitch(openQuickSwitch));
+  useEffect(() => {
+    if (!restoreQuickFocus.current || page === 'quick') return;
+    restoreQuickFocus.current = false;
+    if (page === 'home') void window.rokko.focusService();
+    else {
+      const origin = quickOrigin.current;
+      (origin?.isConnected ? origin : origin?.id ? document.getElementById(origin.id) : null)?.focus();
+    }
+  }, [page]);
   function openApp(template?: ServiceTemplate, existing?: WebApp, remove = false) {
     requestNavigation(() => {
       setRemovalRequested((value) => (remove ? value + 1 : 0));

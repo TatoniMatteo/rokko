@@ -46,3 +46,17 @@ test('missing and unsafe artifacts', async t => {
   await symlink('original', join(directory, 'linked'));
   await assert.rejects(() => describeArtifact(directory, 'linked'), /empty/);
 });
+
+test('supply-chain reports resist alteration', async t => {
+  const directory=await mkdtemp(join(tmpdir(),'rokko-reports-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
+  const names=artifactNames('1.0.0','x64',['AppImage']);
+  await writeFile(join(directory,names[0]),'package');
+  const reportNames=['sbom.cdx.json','licenses.json','THIRD-PARTY-NOTICES.txt'];
+  await Promise.all(reportNames.map(name=>writeFile(join(directory,name),'report '+name)));
+  const reports=await Promise.all(reportNames.map(name=>describeArtifact(directory,name)));
+  await writeManifest(directory,{version:'1.0.0',arch:'x64',targets:['AppImage'],reports},names);
+  await verifyManifest(directory);
+  await writeFile(join(directory,reportNames[0]),'altered');
+  await assert.rejects(()=>verifyManifest(directory),/report integrity/);
+});
