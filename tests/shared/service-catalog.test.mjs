@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { serviceCatalog, validateServiceCatalog } from '../../src/shared/services/service-catalog.mjs';
+import { serviceCatalog, serviceCategories, validateServiceCatalog } from '../../src/shared/services/service-catalog.mjs';
 
 const template = { id: 'example', name: 'Example', url: 'https://example.com/', icon: 'E' };
 
 test('starter catalog', () => {
   assert.equal(serviceCatalog.version, 1);
+  assert.equal(serviceCatalog.templates.length, 100);
+  assert.equal(new Set(serviceCatalog.templates.map(service => service.url)).size,100);
+  for (const service of serviceCatalog.templates) assert.ok(serviceCategories.some(category => category.id === service.category));
+  for (const id of ['google-calendar','google-chat','google-drive','microsoft-teams','proton-mail','trello','todoist','zoom']) assert.ok(serviceCatalog.templates.some(service => service.id === id), id);
   assert.ok(serviceCatalog.templates.some(service => service.id === 'gmail'));
   assert.ok(serviceCatalog.templates.some(service => service.id === 'github'));
   assert.equal(new Set(serviceCatalog.templates.map(service => service.id)).size, serviceCatalog.templates.length);
@@ -40,4 +44,10 @@ test('catalog validation', () => {
 test('catalog schema stays bounded', () => {
   assert.throws(()=>validateServiceCatalog({version:1,templates:[],script:'unused'}));
   assert.throws(()=>validateServiceCatalog({version:1,templates:Array.from({length:101},(_,n)=>({...template,id:'service-'+n}))}));
+});
+
+test('catalog categories stay valid', () => {
+  assert.equal(validateServiceCatalog({version:1,templates:[template]}).templates[0].category,'other');
+  for (const category of ['invalid',true,42]) assert.throws(()=>validateServiceCatalog({version:1,templates:[{...template,category}]}));
+  assert.ok(Object.isFrozen(serviceCategories));
 });

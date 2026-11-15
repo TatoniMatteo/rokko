@@ -18,7 +18,12 @@ export interface AppData {
   selectedWorkspaceId: string;
 }
 export interface ProfileRecovery { kind: 'future' | 'legacy' | 'corrupt'; canRestore: boolean }
+export type MediaCapability = 'camera'|'microphone'|'screen';
+export interface PermissionPrompt {id:string;appId:string;origin:string;capabilities:MediaCapability[];sources?:{id:string;name:string}[]}
+export interface PermissionState {requests:PermissionPrompt[];grants:{appId:string;origin:string;capabilities:MediaCapability[]}[]}
 export interface AppSnapshot {
+  permissionState?: PermissionState;
+  suspendedIds?: string[];
   recovery?: ProfileRecovery;
   profileNotices?: string[];
   data: AppData;
@@ -34,10 +39,22 @@ export interface AppLoadState {
   canGoForward: boolean;
   error?: number | 'blocked' | 'crashed';
 }
+export interface DownloadInfo {id:string;serviceId:string;filename:string;canCancel:boolean;received:number;total:number;state:'progressing'|'interrupted'|'completed'|'cancelled'}
 export interface ViewBounds { x: number; y: number; width: number; height: number }
 export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }
 export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show' | 'controls' | 'remove' | 'reorder';
 export interface RokkoAPI {
+  onPermissions(callback:(state:PermissionState)=>void):()=>void;
+  respondPermission(id:string,allow:boolean,source?:string):Promise<void>;
+  revokePermissions(id:string):Promise<AppSnapshot>;
+  suspendService(id: string): Promise<AppSnapshot>;
+  resumeService(id: string): Promise<AppSnapshot>;
+  recoverConnections(): Promise<void>;
+  getDownloads(): Promise<DownloadInfo[]>;
+  cancelDownload(id:string): Promise<void>;
+  onDownloads(callback:(downloads:DownloadInfo[])=>void):()=>void;
+  exportDiagnostics(): Promise<boolean>;
+  clearDiagnostics(): Promise<void>;
   recoverProfile(action: 'restore' | 'new'): Promise<AppSnapshot>;
   exportProfile(): Promise<boolean>;
   onServiceIcon(callback: (url: string, icon: string) => void): () => void;

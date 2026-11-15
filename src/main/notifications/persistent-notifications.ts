@@ -62,13 +62,18 @@ export class PersistentNotifications {
         }
       });
     };
+    const bindVersion = (versionId: number): void => {
+      let worker: ServiceWorkerMain | undefined;
+      try { worker = session.serviceWorkers.getWorkerFromVersionID(versionId); } catch { return; }
+      bind(worker);
+    };
     const listener = ({ versionId, runningStatus }: Electron.Event<Electron.ServiceWorkersRunningStatusChangedEventParams>): void => {
-      if (runningStatus === 'starting' || runningStatus === 'running') bind(session.serviceWorkers.getWorkerFromVersionID(versionId));
+      if (runningStatus === 'starting' || runningStatus === 'running') bindVersion(versionId);
     };
     session.serviceWorkers.on('running-status-changed', listener);
     this.configurations.set(service.id, { session, origin, scripts, listener });
-    for (const worker of Object.values(session.serviceWorkers.getAllRunning())) {
-      bind(session.serviceWorkers.getWorkerFromVersionID(worker.versionId));
+    for (const versionId of Object.keys(session.serviceWorkers.getAllRunning())) {
+      bindVersion(Number(versionId));
     }
   }
 

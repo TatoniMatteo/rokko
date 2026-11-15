@@ -36,3 +36,19 @@ Dopo la build, `pnpm qa:interface --executable node_modules/electron/dist/electr
 `pnpm qa:connections --executable node_modules/electron/dist/electron` richiede OpenSSL. Induce un vero rifiuto TLS e un vero timeout di handshake (~30 secondi) su server locali, verifica riprova/cronologia e conservazione della sessione. La risposta di recupero dal timeout è sintetica. In una seconda esecuzione isolata autorizza soltanto la chiave SPKI del certificato effimero del test per verificare sul server l'header Accept-Language di servizi globali, privati e condivisi, oltre a navigator.language dopo il riavvio. Non modifica policy TLS o certificati del prodotto/del sistema.
 
 Entrambi accettano `--x11` e vengono eseguiti in CI con Electron sandboxato. La prova con screen reader resta distinta dall'albero CDP: nella verifica locale con Orca su bus/display isolati sono controllati i testi generati per etichette IT/EN, errori e istruzioni di riordino; l'uscita audio e i display braille non sono certificati.
+
+## Affidabilità e permessi
+
+`pnpm qa:reliability --executable node_modules/electron/dist/electron` usa HTTPS locale,
+profilo isolato e dispositivi multimediali sintetici. Verifica consenso e revoca per vista,
+isolamento tra servizi nella stessa sessione, sospensione, crash, errore offline e ripresa,
+popup, download/cancellazione/errori di destinazione e diagnostica priva di dati dei servizi.
+Non usa credenziali personali. Non equivale a sospensione fisica del PC o login OAuth reale.
+
+Su X11 isolato: `xvfb-run --auto-servernum dbus-run-session -- env ROKKO_QA_X11_SCREEN=1 pnpm qa:reliability --executable node_modules/electron/dist/electron --x11`.
+La condivisione schermo seleziona esplicitamente una sorgente del solo display virtuale.
+Il prodotto conserva la policy del portale Wayland. Il test non autorizza dispositivi nell'app normale.
+
+La prova aggiuntiva del chooser nativo richiede `ROKKO_QA_NATIVE_CHOOSER=1`, Python GI/AT-SPI
+ed è dipendente dal portale desktop: il percorso di sostituzione file rimane da convalidare.
+La CI verifica DownloadItem e opzioni del dialogo, non certifica ogni chooser di sistema.

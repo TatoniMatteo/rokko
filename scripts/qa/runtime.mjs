@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-export async function createRuntime(defaultOutput) {
+export async function createRuntime(defaultOutput, { isolateDesktop = false } = {}) {
   const { values } = parseArgs({
     options: {
       prepared: { type: 'string' },
@@ -26,6 +26,13 @@ export async function createRuntime(defaultOutput) {
   await mkdir(output, { recursive: true });
   const config = await mkdtemp(join(output, 'profile-'));
   const env = { ...process.env, XDG_CONFIG_HOME: config };
+  if (isolateDesktop) {
+    env.XDG_DATA_HOME = join(config, 'desktop-data');
+    env.XDG_CACHE_HOME = join(config, 'desktop-cache');
+    env.GSETTINGS_BACKEND = 'memory';
+    await mkdir(env.XDG_DATA_HOME, { recursive: true, mode: 0o700 });
+    await mkdir(env.XDG_CACHE_HOME, { recursive: true, mode: 0o700 });
+  }
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.ELECTRON_RENDERER_URL;
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -124,12 +131,12 @@ export async function createRuntime(defaultOutput) {
         const response = JSON.parse(data);
         waiting.get(response.id)?.(response);
       });
-      async function command(method, params) {
+      async function command(method, params, timeout = 5000) {
         const id = ++next;
         const result = new Promise((resolve) => waiting.set(id, resolve));
         socket.send(JSON.stringify({ id, method, params }));
         try {
-          const response = await bounded(result, method);
+          const response = await bounded(result, method, timeout);
           if (response.error) throw new Error(JSON.stringify(response.error));
           return response.result;
         } finally {
@@ -169,7 +176,7 @@ export async function createRuntime(defaultOutput) {
         browserUrl: url.href,
         pid: child.pid,
         screenshot: async () => {
-          const shot = await command('Page.captureScreenshot', { format: 'png' });
+          const shot = await command('Page.captureScreenshot', { format: 'png', fromSurface: false }, 15000);
           await writeFile(join(output, `${phase}.png`), Buffer.from(shot.data, 'base64'));
         },
       };

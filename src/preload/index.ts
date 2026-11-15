@@ -6,6 +6,25 @@ const receiveIcon = (_event: Electron.IpcRendererEvent, url: string, icon: strin
   for (const listener of iconListeners) listener(url, icon);
 };
 const api: RokkoAPI = {
+  respondPermission: (id,allow,source) => ipcRenderer.invoke('rokko:permission-response',id,allow,source),
+  revokePermissions: id => ipcRenderer.invoke('rokko:permission-revoke',id),
+  onPermissions: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, state: import('../shared/contracts/model').PermissionState) => callback(state);
+    ipcRenderer.on('rokko:permissions-changed',listener);
+    return () => {ipcRenderer.removeListener('rokko:permissions-changed',listener);};
+  },
+  suspendService: id => ipcRenderer.invoke('rokko:suspend-service', id),
+  resumeService: id => ipcRenderer.invoke('rokko:resume-service', id),
+  getDownloads: () => ipcRenderer.invoke('rokko:downloads'),
+  cancelDownload: id => ipcRenderer.invoke('rokko:cancel-download',id),
+  onDownloads: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, downloads: import('../shared/contracts/model').DownloadInfo[]) => callback(downloads);
+    ipcRenderer.on('rokko:downloads-changed',listener);
+    return () => {ipcRenderer.removeListener('rokko:downloads-changed',listener);};
+  },
+  recoverConnections: () => ipcRenderer.invoke('rokko:recover-connections'),
+  exportDiagnostics: () => ipcRenderer.invoke('rokko:export-diagnostics'),
+  clearDiagnostics: () => ipcRenderer.invoke('rokko:clear-diagnostics'),
   recoverProfile: action => ipcRenderer.invoke('rokko:recover-profile', action),
   exportProfile: () => ipcRenderer.invoke('rokko:export-profile'),
   onServiceIcon: callback => {

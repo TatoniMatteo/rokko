@@ -9,7 +9,11 @@ interface ServiceControlsPageProps {
   onForward: () => void;
   onReload: () => void;
   onBrowser: () => void;
+  onPermissions: () => void;
+  onDownloads: () => void;
   onEdit: () => void;
+  onSuspend: () => void;
+  suspended?: boolean;
 }
 
 export function ServiceControlsPage({
@@ -20,7 +24,11 @@ export function ServiceControlsPage({
   onForward,
   onReload,
   onBrowser,
+  onPermissions,
+  onDownloads,
   onEdit,
+  onSuspend,
+  suspended,
 }: ServiceControlsPageProps) {
   const t = useI18n();
   return (
@@ -45,10 +53,24 @@ export function ServiceControlsPage({
           <Button variant="secondary" className="secondary" onClick={onBrowser}>
             {t('Open in browser')}
           </Button>
+          <Button variant="secondary" onClick={onPermissions}>
+            {t('Service permissions')}
+          </Button>
+          <Button variant="secondary" onClick={onDownloads}>
+            {t('Downloads')}
+          </Button>
+          <Button variant="secondary" onClick={onSuspend}>
+            {t(suspended ? 'Resume service' : 'Suspend service')}
+          </Button>
           <Button variant="secondary" className="secondary" onClick={onEdit}>
             {t('Edit application')}
           </Button>
         </div>
+        <p className="page-note">
+          {t(
+            'Suspending stops this service and pauses its notifications until resumed or Rokko is restarted. Cookies are kept; no service is suspended automatically.',
+          )}
+        </p>
       </section>
     </div>
   );

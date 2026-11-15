@@ -1,3 +1,4 @@
+import { DiagnosticsCard } from '../components/DiagnosticsCard';
 import { useState } from 'react';
 import { errorMessage } from '../preferences/i18n';
 import { SeedColorPicker } from '../components/SeedColorPicker';
@@ -14,6 +15,8 @@ export function ApplicationSettingsPage({
   onSave,
   onCancel,
   onChange,
+  onPermissions,
+  onDownloads,
   onShortcuts,
   onImport,
   onManageServices,
@@ -26,6 +29,8 @@ export function ApplicationSettingsPage({
   onSave: () => void;
   onCancel: () => void;
   onChange: (value: Preferences) => void;
+  onPermissions: () => void;
+  onDownloads: () => void;
   onShortcuts: () => void;
   onImport: () => void;
   onManageServices: () => void;
@@ -160,6 +165,8 @@ export function ApplicationSettingsPage({
         )}
         <div className="settings-tools">
           {[
+            [t('Service permissions'), onPermissions],
+            [t('Downloads'), onDownloads],
             [t('Configured services'), onManageServices],
             [t('All workspaces'), onManageWorkspaces],
             [t('Import from Rambox'), onImport],
@@ -197,6 +204,7 @@ export function ApplicationSettingsPage({
           </Button>
           {exportStatus && <p role="status">{t(exportStatus)}</p>}
         </Card>
+        <DiagnosticsCard />
         <Card className="full-width">
           <h2>{t('About Rokko')}</h2>
           <p className="page-note">

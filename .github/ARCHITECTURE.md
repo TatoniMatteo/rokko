@@ -118,3 +118,16 @@ Il generatore puro corregge anche il contrasto finale delle palette salvate in F
 polling o calcolo per frame: i token vengono applicati solo quando cambia il tema/snapshot.
 La barra supporta Tab, frecce secondo l'orientamento, Home/End e menù dei servizi da tastiera.
 Il riordino mantiene trascinamento, attivazione del pulsante e annunci con istruzioni associate.
+
+## Affidabilità Linux
+
+Sospensione esplicita e permessi media sono per servizio: il teardown usa gli stessi proprietari
+dei worker e conserva cookie e peer condivisi. La ripresa di rete ritenta solo errori transitori
+caricati, con tre tentativi limitati; crash e TLS richiedono un'azione esplicita. Nessun poller idle.
+I permessi camera/microfono sono effimeri per WebContents e origine; cattura schermo richiede
+una scelta esplicita della sorgente. Le richieste in iframe o background vengono negate.
+
+Download streaming nativi: limiti di concorrenza, nomi sicuri, conferma sovrascrittura e annullamento.
+I log locali ruotano e scadono, ammettono solo eventi predefiniti e codici numerici; nessun URL,
+nome di servizio o testo delle eccezioni. L'esportazione diagnostica è volontaria e privata.
+Web Push rimane nel gate #53; il probe di affidabilità non dichiara compatibilità universale.

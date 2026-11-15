@@ -1,3 +1,5 @@
+import { interfaceDriver } from './interface-driver.mjs';
+import { serviceCatalog } from '../../src/shared/services/service-catalog.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -80,7 +82,14 @@ try {
   assert.equal(initialPages, 1);
   await click('Aggiungi applicazione');
   await eventually(() => run('Boolean(document.querySelector(".service-grid"))'), 'catalog');
-  assert.equal(await run('document.querySelectorAll(".service-card").length'), 9);
+  assert.equal(await run('document.querySelectorAll(".service-card").length'), serviceCatalog.templates.length + 1);
+  assert.equal(await run('document.querySelectorAll(".catalog-group").length'),10);
+  await writeFile(join(output,'catalog.png'),Buffer.from((await browser.command('Page.captureScreenshot',{format:'png'})).data,'base64'));
+  await interfaceDriver(browser).fill('#catalog-search','Proton');
+  await eventually(()=>run('document.querySelectorAll(".service-card").length===4'),'catalog search across categories');
+  assert.equal(await run('document.querySelectorAll(".custom-service").length'),1);
+  await interfaceDriver(browser).fill('#catalog-search','');
+  await eventually(()=>run(`document.querySelectorAll(".service-card").length===${serviceCatalog.templates.length+1}`),'catalog search reset');
   assert.equal(
     (await client.send('Target.getTargets')).targetInfos.filter((t) => t.type === 'page').length,
     initialPages,

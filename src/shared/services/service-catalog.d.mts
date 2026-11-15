@@ -1,4 +1,5 @@
 export interface ServiceTemplate {
+  readonly category: string;
   readonly id: string;
   readonly name: string;
   readonly url: string;
@@ -11,3 +12,5 @@ export interface ServiceCatalog {
 }
 export function validateServiceCatalog(value: unknown): ServiceCatalog;
 export const serviceCatalog: ServiceCatalog;
+
+export const serviceCategories: readonly {readonly id:string;readonly name:string}[];

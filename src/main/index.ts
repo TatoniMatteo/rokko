@@ -1,4 +1,8 @@
-import { app, Menu, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification, dialog } from 'electron';
+import { externalLink } from '../shared/security/external-links.mjs';
+import { MediaPermissions } from './permissions/media-permissions';
+import { Downloads } from './downloads/downloads';
+import { LocalLog, diagnosticReport, exportDiagnostics } from './diagnostics/local-log.mjs';
+import { app, Menu, BaseWindow, ipcMain, WebContentsView, session, shell, Notification as DesktopNotification, dialog, powerMonitor } from 'electron';
 import { nativeViewBounds } from './lifecycle/view-bounds.mjs';
 import { restoreWindow, createTray } from './lifecycle/desktop';
 import { isShellSender } from './security/shell-sender.mjs';
@@ -29,6 +33,8 @@ if (!primaryInstance) app.quit();
 if (process.platform === 'linux') app.setDesktopName('rokko.desktop');
 
 const profileDirectory = app.getPath('userData');
+const diagnostics = new LocalLog(profileDirectory);
+if (primaryInstance) diagnostics.record('startup');
 let profileStore: ProfileStore | undefined;
 let recovery: ReturnType<typeof recoveryInfo> | undefined;
 let initial = emptyProfile();
@@ -60,6 +66,7 @@ const closingViews = new Map<string, Promise<void>>();
 app.on('second-instance', () => restoreWindow(win));
 app.on('activate', () => restoreWindow(win));
 const views = new Map<string, WebContentsView>();
+const suspended = new Set<string>();
 const appStates = new Map<string, AppLoadState>();
 let activeAppId: string | null = initial.activeAppId;
 let overlayOpen = false;
@@ -67,6 +74,9 @@ let bounds: ViewBounds = { x: 238, y: 106, width: 942, height: 550 };
 let persistentNotifications: PersistentNotifications;
 const permissionSessions = new WeakSet<Electron.Session>();
 const accountWindows = new Map<string, Set<Electron.BrowserWindow>>();
+const downloads = new Downloads(contents => [...views].find(([,view]) => view.webContents === contents)?.[0], () => {if(shellView&&!shellView.webContents.isDestroyed())shellView.webContents.send('rokko:downloads-changed',downloads.list());}, event => diagnostics.record(event));
+
+const mediaPermissions = new MediaPermissions(contents => {const entry=[...views].find(([,view]) => view.webContents === contents);return entry?{id:entry[0],active:entry[0]===activeAppId&&!overlayOpen&&!suspended.has(entry[0])}:undefined;}, () => {if(shellView&&!shellView.webContents.isDestroyed())shellView.webContents.send('rokko:permissions-changed',mediaPermissions.list());}, event => diagnostics.record(event));
 
 function saveData(value: AppData = data): void {
   try { preferences = activeStore().saveData(value, activeAppId).preferences; }
@@ -85,7 +95,7 @@ function scheduleContext(): void {
     catch { profileNotices = ['Could not save the last workspace. Your services are unchanged.']; shellView?.webContents.send('rokko:snapshot-changed', snapshot()); }
   }, 150);
 }
-function snapshot(): AppSnapshot { return { data, activeAppId, appStates: Object.fromEntries(appStates), preferences, browserLanguage, recovery, profileNotices }; }
+function snapshot(): AppSnapshot { return { data, activeAppId, suspendedIds:[...suspended], permissionState:mediaPermissions.list(), appStates: Object.fromEntries(appStates), preferences, browserLanguage, recovery, profileNotices }; }
 function updateAppState(id: string, state: AppLoadState): void {
   if (!views.has(id)) return;
   const previous = appStates.get(id);
@@ -125,19 +135,24 @@ function detachViews(): void {
   }
 }
 function ensureView(appInfo: WebApp): WebContentsView {
+  if (suspended.has(appInfo.id)) throw new Error('Resume the service first.');
   let view = views.get(appInfo.id);
   if (!view) {
     const partitionSession = session.fromPartition(appInfo.partition);
     partitionSession.setUserAgent(partitionSession.getUserAgent(), languageList(browserLanguage));
     persistentNotifications.configure(appInfo, partitionSession);
+    downloads.configure(partitionSession);
     if (!permissionSessions.has(partitionSession)) {
       permissionSessions.add(partitionSession);
       const allowed = (requester: Electron.WebContents | null, permission: string, origin: string): boolean =>
         data.apps.some(item => item.partition === appInfo.partition &&
           (!requester || views.get(item.id)?.webContents === requester) && notificationAllowed(item, permission, origin));
-      partitionSession.setPermissionRequestHandler((requester, permission, callback, details) =>
-        callback(allowed(requester, permission, details.requestingUrl)));
-      partitionSession.setPermissionCheckHandler((requester, permission, origin) => allowed(requester, permission, origin));
+      mediaPermissions.configure(partitionSession);
+      partitionSession.setPermissionRequestHandler((requester, permission, callback, details) => {
+        if (permission === 'notifications') callback(allowed(requester, permission, details.requestingUrl));
+        else mediaPermissions.request(requester,permission,callback,details);
+      });
+      partitionSession.setPermissionCheckHandler((requester, permission, origin, details) => permission === 'notifications' ? allowed(requester, permission, origin) : mediaPermissions.check(requester,permission,origin,details));
     }
     view = new WebContentsView({ webPreferences: {
       session: partitionSession, nodeIntegration: false, contextIsolation: true, sandbox: true
@@ -157,7 +172,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
     });
     views.set(appInfo.id, view);
     remote.on('render-process-gone', (_event, details) => {
-      if (details.reason !== 'clean-exit') report('failed', undefined, 'crashed');
+      if (details.reason !== 'clean-exit') { diagnostics.record('renderer-crashed'); report('failed', undefined, 'crashed'); }
     });
     const report = (status: AppLoadState['status'], url = appStates.get(appInfo.id)?.url ?? appInfo.url,
       error?: AppLoadState['error']): void => {
@@ -170,7 +185,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
       if (mainFrame && !inPlace && isSafeHttpsUrl(url)) report('loading', url);
     });
     remote.on('did-fail-load', (_event, code, _description, url, mainFrame) => {
-      if (mainFrame && code !== -3) report('failed', url, code);
+      if (mainFrame && code !== -3) { diagnostics.record('load-failed', {code}); report('failed', url, code); }
     });
     remote.on('did-finish-load', () => {
       if (appStates.get(appInfo.id)?.status !== 'failed') report('ready', remote.getURL());
@@ -179,6 +194,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
       if (appStates.get(appInfo.id)?.status === 'loading') report('ready', remote.getURL());
     });
     remote.on('did-navigate', (_event, url) => {
+      mediaPermissions.navigated(appInfo.id,url);
       report(appStates.get(appInfo.id)?.status === 'failed' ? 'failed' : 'loading', url,
         appStates.get(appInfo.id)?.error);
     });
@@ -193,7 +209,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
         return { action: 'allow', overrideBrowserWindowOptions: { parent: win ?? undefined, fullscreenable: false,
           webPreferences: { session: partitionSession, nodeIntegration: false, contextIsolation: true, sandbox: true } } };
       }
-      if (isSafeHttpsUrl(url)) void shell.openExternal(url);
+      void externalFromService(remote,url);
       return { action: 'deny' };
     });
     remote.on('did-create-window', child => {
@@ -209,7 +225,7 @@ function ensureView(appInfo: WebApp): WebContentsView {
       child.webContents.on('will-redirect', (request, url) => { if (!isSafeHttpsUrl(url)) request.preventDefault(); });
     });
     remote.on('will-navigate', (event, url) => {
-      if (!isSafeHttpsUrl(url)) { event.preventDefault(); report('failed', appInfo.url, 'blocked'); }
+      if (!isSafeHttpsUrl(url)) { event.preventDefault(); if (externalLink(url)) void externalFromService(remote,url); else report('failed', appInfo.url, 'blocked'); }
     });
     remote.on('will-redirect', (event, url) => {
       if (!isSafeHttpsUrl(url)) { event.preventDefault(); report('failed', appInfo.url, 'blocked'); }
@@ -221,14 +237,14 @@ function ensureView(appInfo: WebApp): WebContentsView {
 function syncNotificationViews(): void {
   if (shutdown) return;
   for (const service of data.apps) {
-    if (notificationAllowed(service, 'notifications', service.url)) ensureView(service);
+    if (!suspended.has(service.id) && notificationAllowed(service, 'notifications', service.url)) ensureView(service);
   }
 }
 function redrawView(): void {
   if (shutdown || !win || !shellView) return;
   detachViews();
   const appInfo = selectedApp();
-  if (!appInfo || overlayOpen) return;
+  if (!appInfo || overlayOpen || suspended.has(appInfo.id)) return;
   const view = ensureView(appInfo);
   if (appStates.get(appInfo.id)?.status === 'failed') return;
   const size = shellView.getBounds();
@@ -236,6 +252,17 @@ function redrawView(): void {
     ? bounds : { x: 0, y: 0, width: 0, height: 0 };
   view.setBounds(safeBounds);
   win.contentView.addChildView(view);
+}
+const externalPrompts = new Set<Electron.WebContents>();
+async function externalFromService(contents:Electron.WebContents,url:string):Promise<void> {
+  const destination=externalLink(url);
+  if(!destination||shutdown||contents.isDestroyed()||externalPrompts.has(contents)||![...views.values()].some(view=>view.webContents===contents))return;
+  externalPrompts.add(contents);
+  try {
+    const italian=preferences.language==='it';
+    const result=await dialog.showMessageBox({type:'question',message:italian?'Aprire questo collegamento fuori da Rokko?':'Open this link outside Rokko?',detail:destination.label,buttons:italian?['Annulla','Apri']:['Cancel','Open'],defaultId:0,cancelId:0,noLink:true});
+    if(result.response===1&&!shutdown&&!contents.isDestroyed()&&[...views.values()].some(view=>view.webContents===contents))await shell.openExternal(destination.url);
+  }catch{/* A missing desktop handler leaves the service intact. */}finally{externalPrompts.delete(contents);}
 }
 function isSafeHttpsUrl(url: string): boolean {
   try { const parsed = new URL(url); return parsed.protocol === 'https:' && !parsed.username && !parsed.password; }
@@ -250,6 +277,8 @@ function closeView(id: string): Promise<void> {
   return task;
 }
 async function disposeView(id: string): Promise<void> {
+  mediaPermissions.closeApp(id);
+  downloads.closeService(id);
   await persistentNotifications.closeApp(id);
   testNotifications.get(id)?.close();
   testNotifications.delete(id);
@@ -304,7 +333,7 @@ async function commitRegistry(next: AppData, invalidate?: string | string[]): Pr
 }
 const serviceIcons = new Map<string, Promise<string | null>>();
 function reloadService(id: string | null): void {
-  if (!id) return;
+  if (!id || suspended.has(id)) return;
   const state = appStates.get(id);
   if (state) updateAppState(id, { ...state, status: 'loading', error: undefined });
   views.get(id)?.webContents.reload();
@@ -360,6 +389,42 @@ function registerIpc(): void {
   });
   ipcMain.handle('rokko:move-app', (event, id: unknown, target: unknown, after: unknown) => {
     requireShell(event); return commitRegistry(moveApp(data, id, target, after));
+  });
+  ipcMain.handle('rokko:permission-response', (event,id:unknown,allow:unknown,source:unknown) => {requireShell(event);mediaPermissions.respond(id,allow,source);});
+  ipcMain.handle('rokko:permission-revoke', async (event,id:unknown) => {requireShell(event);if(typeof id!=='string'||!data.apps.some(service=>service.id===id))throw new Error('Unknown service');await closeView(id);syncNotificationViews();redrawView();return snapshot();});
+  ipcMain.handle('rokko:downloads', event => {requireShell(event);return downloads.list();});
+  ipcMain.handle('rokko:cancel-download', (event,id:unknown) => {requireShell(event);downloads.cancel(id);});
+  ipcMain.handle('rokko:suspend-service', async (event, id: unknown) => {
+    requireShell(event);
+    if (typeof id !== 'string' || !data.apps.some(service => service.id === id)) throw new Error('Unknown service');
+    if (!suspended.has(id)) {
+      suspended.add(id);
+      await closeView(id).catch(() => { /* closeView always disposes the renderer. */ });
+      diagnostics.record('service-suspended');
+    }
+    redrawView(); return snapshot();
+  });
+  ipcMain.handle('rokko:resume-service', async (event, id: unknown) => {
+    requireShell(event);
+    if (typeof id !== 'string' || !data.apps.some(service => service.id === id)) throw new Error('Unknown service');
+    await closingViews.get(id);
+    requireShell(event);
+    if (!data.apps.some(service => service.id === id)) throw new Error('Unknown service');
+    suspended.delete(id); diagnostics.record('service-resumed');
+    syncNotificationViews(); redrawView(); return snapshot();
+  });
+  ipcMain.handle('rokko:recover-connections', event => { requireShell(event); scheduleReconnect(); });
+  ipcMain.handle('rokko:export-diagnostics', async event => {
+    requireShell(event);
+    const result = await dialog.showSaveDialog({title: preferences.language === 'it' ? 'Esporta diagnostica' : 'Export diagnostics', defaultPath:'rokko-diagnostics.json',filters:[{name:'JSON',extensions:['json']}]});
+    if (result.canceled || !result.filePath) return false;
+    try {
+      exportDiagnostics(result.filePath, diagnosticReport({versions:{app:app.getVersion(),electron:process.versions.electron,chrome:process.versions.chrome,node:process.versions.node},platform:process.platform,arch:process.arch,display:process.env.WAYLAND_DISPLAY ? 'wayland' : 'x11',counts:{services:data.apps.length,workspaces:data.workspaces.length,loaded:views.size,suspended:suspended.size}},diagnostics.read()));
+      return true;
+    } catch { throw new Error('Could not export diagnostics.'); }
+  });
+  ipcMain.handle('rokko:clear-diagnostics', event => {
+    requireShell(event); try {diagnostics.clear();} catch {throw new Error('Could not clear diagnostics.');}
   });
   ipcMain.handle('rokko:restart', event => { requireShell(event); app.relaunch(); app.quit(); });
   ipcMain.handle('rokko:recover-profile', (event, action: unknown) => {
@@ -452,6 +517,7 @@ function registerIpc(): void {
     if (activeAppId === id) activeAppId = null;
     await closeView(id);
     persistentNotifications.unregister(id);
+    suspended.delete(id);
     redrawView(); return snapshot();
   });
   ipcMain.handle('rokko:update-app', (event, id: unknown, input: unknown) => {
@@ -535,8 +601,9 @@ function registerIpc(): void {
   });
   ipcMain.handle('rokko:external', (event, url: unknown) => {
     requireShell(event);
-    if (typeof url !== 'string' || !isSafeHttpsUrl(url)) throw new Error('Invalid external URL');
-    return shell.openExternal(url);
+    const destination=externalLink(url);
+    if (!destination) throw new Error('Invalid external URL');
+    return shell.openExternal(destination.url);
   });
 }
 async function createWindow(): Promise<void> {
@@ -568,6 +635,24 @@ async function createWindow(): Promise<void> {
   win.show();
   setImmediate(syncNotificationViews);
 }
+const reconnectTimers = new Set<ReturnType<typeof setTimeout>>();
+let lastReconnect = 0;
+function scheduleReconnect(): void {
+  if (shutdown || Date.now()-lastReconnect < 5000) return;
+  lastReconnect=Date.now();
+  for (const timer of reconnectTimers) clearTimeout(timer);
+  reconnectTimers.clear();
+  for (const delay of [1000, 4000, 12000]) {
+    const timer=setTimeout(() => {
+      reconnectTimers.delete(timer);
+      if (shutdown) return;
+      for (const [id,state] of appStates) {
+        if (!suspended.has(id) && state.status === 'failed' && typeof state.error === 'number' && [-2,-7,-101,-102,-105,-106,-118,-137].includes(state.error)) reloadService(id);
+      }
+    },delay);
+    reconnectTimers.add(timer);
+  }
+}
 if (primaryInstance) app.whenReady().then(async () => {
   persistentNotifications = new PersistentNotifications({
     app: id => data.apps.find(service => service.id === id),
@@ -587,6 +672,7 @@ if (primaryInstance) app.whenReady().then(async () => {
       shellView?.webContents.send('rokko:snapshot-changed', snapshot());
     }
   });
+  powerMonitor.on('resume', () => {diagnostics.record('system-resume'); scheduleReconnect();});
   registerIpc(); await createWindow();
   tray = createTray(appIcon, () => win, () => preferences.language);
 }).catch(error => { console.error(error); app.quit(); });
@@ -595,6 +681,10 @@ app.on('before-quit', event => {
   event.preventDefault();
   if (shutdown) return;
   tray?.destroy();
+  mediaPermissions.close();
+  downloads.close();
+  for (const timer of reconnectTimers) clearTimeout(timer);
+  reconnectTimers.clear();
   try { flushContext(); } catch { console.error('[Rokko] Could not save the last workspace.'); }
   shutdown = Promise.allSettled([...views.keys()].map(closeView)).then(() => {
     clearTimeout(contextTimer);

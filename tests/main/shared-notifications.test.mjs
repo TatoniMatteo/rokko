@@ -30,7 +30,7 @@ function fixture() {
   function session() {
     const workers = new Map();const registered = [];const removed = [];
     const serviceWorkers = new EventEmitter();
-    serviceWorkers.getAllRunning = () => Object.fromEntries([...workers].map(([id, worker]) => [id, { versionId: id, scope: worker.scope }]));
+    serviceWorkers.getAllRunning = () => Object.fromEntries([...workers].map(([id, worker]) => [id, { scope: worker.scope }]));
     serviceWorkers.getWorkerFromVersionID = id => workers.get(id);
     const value = { serviceWorkers, registerPreloadScript: script => { const id = `${registered.length}`; registered.push(script); return id; },
       unregisterPreloadScript: id => removed.push(id) };
@@ -72,4 +72,10 @@ test('changed session revokes old workers', async () => {
   f.views.set('app', { session: next.value });f.manager.configure(app, next.value);
   assert.equal(old.removed.length, 2);assert.equal(next.registered.length, 2);
   await assert.rejects(async () => f.request(old.value, worker), /not allowed/);
+});
+
+test('stopped worker does not break view creation', () => {
+  const f=fixture(),ses=f.session();ses.workers.set(9,{scope:'https://same.example/'});
+  ses.value.serviceWorkers.getWorkerFromVersionID=()=>{throw new Error('Worker has stopped');};
+  assert.doesNotThrow(()=>f.manager.configure(f.app('app','https://same.example/',ses.value),ses.value));
 });
