@@ -64,6 +64,11 @@ jobs:
           xvfb-run --auto-servernum dbus-run-session -- env ROKKO_QA_X11_SCREEN=1
           corepack pnpm qa:reliability --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/reliability --x11
+      - name: Check quick switch, split views and configuration import/export
+        run: >-
+          xvfb-run --auto-servernum dbus-run-session -- corepack pnpm qa:productivity
+          --executable node_modules/electron/dist/electron
+          --output .codex/tasks/ci-smoke/results/productivity --x11
       - name: Unload temporary sandbox profile
         if: ${{ always() && steps.sandbox.outputs.loaded == 'true' }}
         run: sudo apparmor_parser --remove .codex/tasks/ci-smoke/electron.apparmor

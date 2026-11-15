@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
 import { Button } from '../components/ui';
 import { useI18n } from '../preferences/i18n';
 
 interface ServiceControlsPageProps {
+  tools?: ReactNode;
   name: string;
   canGoBack?: boolean;
   canGoForward?: boolean;
@@ -18,6 +20,7 @@ interface ServiceControlsPageProps {
 
 export function ServiceControlsPage({
   name,
+  tools,
   canGoBack,
   canGoForward,
   onBack,
@@ -72,6 +75,7 @@ export function ServiceControlsPage({
           )}
         </p>
       </section>
+      {tools}
     </div>
   );
 }

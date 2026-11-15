@@ -131,3 +131,23 @@ Download streaming nativi: limiti di concorrenza, nomi sicuri, conferma sovrascr
 I log locali ruotano e scadono, ammettono solo eventi predefiniti e codici numerici; nessun URL,
 nome di servizio o testo delle eccezioni. L'esportazione diagnostica è volontaria e privata.
 Web Push rimane nel gate #53; il probe di affidabilità non dichiara compatibilità universale.
+
+## Produttività e configurazione portabile
+
+Ctrl+K viene intercettato solo nelle viste della shell e dei servizi visibili. La ricerca usa
+nomi locali di servizi, workspace e comandi; non legge DOM o contenuti remoti. Escape ripristina
+la pagina e il focus. La vista affiancata riutilizza due WebContentsView e le relative sessioni;
+il divisore ridimensiona i bounds, senza ricariche. ID secondario e proporzione sono preferenze
+validate e persistite; nascondere o rimuovere il servizio rende inattivo il secondo pannello.
+
+Mute è per WebContents e si ripristina dalle preferenze. Cache HTTP e reset permessi hanno
+conferme separate: la cache appartiene alla sessione (peer elencati), non cancella cookie o
+storage; il reset rimuove consensi del servizio e ricrea soltanto la sua vista.
+
+Il JSON `rokko-configuration` v1 è un formato portabile con soli metadati, limiti e schema
+chiusi. Anteprima e import vengono convalidati separatamente; le partizioni non vengono mai
+copiate. Workspace per nome, nuove identità dei servizi, duplicati espliciti (salta/copia),
+conteggi per conservare account duplicati e reimport idempotente. Registro e preferenze vengono
+salvati nella stessa transazione SQLite. Nessun permesso viene importato; condividere un
+workspace esistente può riutilizzarne gli account, come spiegato nell'anteprima.
+L'export legacy per downgrade omette le nuove preferenze di split e mute.

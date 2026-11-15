@@ -6,6 +6,18 @@ const receiveIcon = (_event: Electron.IpcRendererEvent, url: string, icon: strin
   for (const listener of iconListeners) listener(url, icon);
 };
 const api: RokkoAPI = {
+  setSplit: (id,ratio) => ipcRenderer.invoke('rokko:split',id,ratio),
+  previewSplitRatio: ratio => ipcRenderer.send('rokko:split-ratio',ratio),
+  controlService: (id,action) => ipcRenderer.invoke('rokko:service-control',id,action),
+  exportConfiguration: () => ipcRenderer.invoke('rokko:configuration-export'),
+  readConfiguration: () => ipcRenderer.invoke('rokko:configuration-read'),
+  importConfiguration: (input,options) => ipcRenderer.invoke('rokko:configuration-import',input,options),
+  onQuickSwitch: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('rokko:quick-switch', listener);
+    return () => {ipcRenderer.removeListener('rokko:quick-switch', listener);};
+  },
+  focusService: () => ipcRenderer.invoke('rokko:focus-service'),
   respondPermission: (id,allow,source) => ipcRenderer.invoke('rokko:permission-response',id,allow,source),
   revokePermissions: id => ipcRenderer.invoke('rokko:permission-revoke',id),
   onPermissions: callback => {

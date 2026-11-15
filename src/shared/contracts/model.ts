@@ -22,6 +22,7 @@ export type MediaCapability = 'camera'|'microphone'|'screen';
 export interface PermissionPrompt {id:string;appId:string;origin:string;capabilities:MediaCapability[];sources?:{id:string;name:string}[]}
 export interface PermissionState {requests:PermissionPrompt[];grants:{appId:string;origin:string;capabilities:MediaCapability[]}[]}
 export interface AppSnapshot {
+  loadedIds?: string[];
   permissionState?: PermissionState;
   suspendedIds?: string[];
   recovery?: ProfileRecovery;
@@ -44,6 +45,16 @@ export interface ViewBounds { x: number; y: number; width: number; height: numbe
 export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }
 export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show' | 'controls' | 'remove' | 'reorder';
 export interface RokkoAPI {
+  setSplit(secondaryId:string|null,ratio:number):Promise<AppSnapshot>;
+  previewSplitRatio(ratio:number):void;
+  controlService(id:string,action:'mute'|'unmute'|'reload'|'reset-permissions'|'clear-cache'):Promise<AppSnapshot>;
+
+  exportConfiguration(): Promise<boolean>;
+  readConfiguration(): Promise<import('../import/configuration.mjs').Configuration|null>;
+  importConfiguration(input:import('../import/configuration.mjs').Configuration,options:import('../import/configuration.mjs').ConfigurationImportOptions):Promise<AppSnapshot & {importSummary:{added:number;skipped:number}}>;
+
+  onQuickSwitch(callback: () => void): () => void;
+  focusService(): Promise<void>;
   onPermissions(callback:(state:PermissionState)=>void):()=>void;
   respondPermission(id:string,allow:boolean,source?:string):Promise<void>;
   revokePermissions(id:string):Promise<AppSnapshot>;

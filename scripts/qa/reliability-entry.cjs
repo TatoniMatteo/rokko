@@ -15,7 +15,7 @@ if (process.env.ROKKO_QA_X11_SCREEN === '1')
 const root = process.env.XDG_CONFIG_HOME,
   key = randomUUID(),
   files = join(root, 'qa-files');
-mkdirSync(files, { mode: 0o700 });
+mkdirSync(files, { mode: 0o700, recursive:true });
 app.setPath('downloads', files);
 writeFileSync(join(files, 'blocker'), 'not a directory');
 let downloadMode = 'complete';
@@ -80,7 +80,7 @@ const server = createServer(async (req, res) => {
       webContents
         .getAllWebContents()
         .filter((w) =>
-          /^https:\/\/(linux\.rokko\.test|accounts\.google\.com):\d+\//.test(w.getURL()),
+          /^https:\/\/([a-z-]+\.rokko\.test(?::\d+)?|accounts\.google\.com:\d+)\//.test(w.getURL()),
         );
     if (command.action === 'status')
       result = {
@@ -88,16 +88,26 @@ const server = createServer(async (req, res) => {
           id: w.id,
           url: w.getURL(),
           crashed: w.isCrashed(),
+          muted: w.isAudioMuted(),
         })),
         attachedIds: BaseWindow.getAllWindows()[0]?.contentView.children.map(
           (view) => view.webContents.id,
         ),
+        attached: BaseWindow.getAllWindows()[0]?.contentView.children.map(view=>({id:view.webContents.id,bounds:view.getBounds()})),
+        focusedId: webContents.getFocusedWebContents()?.id,
         mainErrors,
         questions,
         external,
         saveOptions,
       };
     else if (command.action === 'resume') powerMonitor.emit('resume');
+    else if (command.action === 'shortcut') {
+      const w = owned().find(w => w.id === command.id);
+      if (!w) throw Error('target');
+      w.focus();
+      w.sendInputEvent({type:'keyDown',keyCode:'K',modifiers:['control']});
+      w.sendInputEvent({type:'keyUp',keyCode:'K',modifiers:['control']});
+    }
     else if (command.action === 'crash') {
       const w = owned().find((w) => w.id === command.id);
       if (!w) throw Error('target');
@@ -124,3 +134,8 @@ server.listen(0, '127.0.0.1', () =>
 );
 app.on('will-quit', () => server.close());
 require('./profile-entry.cjs');
+
+const openDialog = dialog.showOpenDialog;
+dialog.showOpenDialog = async options => options.properties?.includes('openFile')
+  ? {canceled:false,filePaths:[join(files,'configuration.json')]} : openDialog(options);
+dialog.showSaveDialog = async options => ({canceled:false,filePath:join(files,options.defaultPath === 'rokko-configuration.json' ? 'configuration.json' : 'diagnostics.json')});
