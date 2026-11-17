@@ -7,5 +7,10 @@ allowBuilds:
   esbuild: true
   electron-winstaller: true
 
+# The only ignored advisory has no patched npm release and affects dev-only picomatch.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
+
 minimumReleaseAgeExclude:
   - electron@45.3.2
