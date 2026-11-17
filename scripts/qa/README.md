@@ -67,3 +67,14 @@ La CI Xvfb usa `sh scripts/qa/x11-session.sh COMANDO ...` su un bus/display isol
 Openbox e xprop. Il window manager invia gli eventi di visibilità e attivazione necessari
 all'acquisizione dei frame; il wrapper arresta soltanto il processo che ha avviato.
 Non modifica la shell grafica dell'utente né le impostazioni di throttling del prodotto.
+
+## Ibernazione automatica
+
+`pnpm qa:hibernation --executable node_modules/electron/dist/electron --x11` su Xvfb con
+window manager/bus isolati richiede OpenSSL e usa solo HTTPS e sessioni sintetiche.
+Copre default dei workspace nascosti, chiusura di peer condivisi e dei loro service/shared
+worker senza interrompere una sessione distinta, cookie alla ripresa, indicatori nella barra,
+regola per workspace, riattivazione all'apertura, sospensione manuale indipendente e scadenza
+reale di inattività di un minuto configurato dalla pagina del singolo servizio, regole
+avanzate con ambito fisso, assenza di badge sui servizi attivi e persistenza al riavvio.
+Non simula chiamate reali dei provider né certifica Web Push; la sospensione pausa le notifiche.

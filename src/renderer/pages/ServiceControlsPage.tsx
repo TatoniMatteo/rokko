@@ -15,6 +15,7 @@ interface ServiceControlsPageProps {
   onDownloads: () => void;
   onEdit: () => void;
   onSuspend: () => void;
+  onHibernation: () => void;
   suspended?: boolean;
 }
 
@@ -31,6 +32,7 @@ export function ServiceControlsPage({
   onDownloads,
   onEdit,
   onSuspend,
+  onHibernation,
   suspended,
 }: ServiceControlsPageProps) {
   const t = useI18n();
@@ -63,15 +65,16 @@ export function ServiceControlsPage({
             {t('Downloads')}
           </Button>
           <Button variant="secondary" onClick={onSuspend}>
-            {t(suspended ? 'Resume service' : 'Suspend service')}
+            {t(suspended ? 'Resume service' : 'Hibernate')}
           </Button>
+          <Button variant="secondary" onClick={onHibernation}>{t('Configure hibernation')}</Button>
           <Button variant="secondary" className="secondary" onClick={onEdit}>
             {t('Edit application')}
           </Button>
         </div>
         <p className="page-note">
           {t(
-            'Suspending stops this service and pauses its notifications until resumed or Rokko is restarted. Cookies are kept; no service is suspended automatically.',
+            'Suspending stops this service and pauses its notifications until resumed or Rokko is restarted. Cookies are kept. Automatic hibernation follows your saved rules.',
           )}
         </p>
       </section>

@@ -117,6 +117,8 @@ export function validateProfile(data, preferences, activeAppId = null) {
   nextPreferences.hiddenWorkspaces = nextPreferences.hiddenWorkspaces.filter((id) =>
     workspaces.has(id),
   );
+  nextPreferences.hibernation.excludedServiceIds=nextPreferences.hibernation.excludedServiceIds.filter(id=>ids.has(id));
+  nextPreferences.hibernation.rules=nextPreferences.hibernation.rules.filter(rule=>rule.scope.kind==='all'||(rule.scope.kind==='service'?ids:workspaces).has(rule.scope.id));
   nextPreferences.mutedServices = nextPreferences.mutedServices.filter(id => ids.has(id));
   if (!ids.has(nextPreferences.split.secondaryId)) nextPreferences.split.secondaryId = null;
   return {

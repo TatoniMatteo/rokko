@@ -19,14 +19,26 @@ const code = nodeModule.stripTypeScriptTypes
 
 function fixture() {
   const handlers = new Map();
+  const nativeNotifications = [];
+  const changes = [];
+  class NativeNotification extends EventEmitter {
+    static isSupported() { return true; }
+    constructor(options) { super(); this.options = options; nativeNotifications.push(this); }
+    show() { queueMicrotask(() => this.emit('show')); }
+    close() { this.emit('close'); }
+  }
   const electron = { ipcMain: { handle: (name, callback) => handlers.set(name, callback) },
+    Notification: NativeNotification,
     nativeImage: { createFromPath: () => ({ resize: () => ({}) }) } };
   const exports = {};
   vm.runInNewContext(code, { exports, __dirname: '/qa/main', setTimeout, clearTimeout,
     require: name => name === 'electron' ? electron : name.endsWith('/notifications.mjs') ? policy
       : name.endsWith('/persistent-notifications.mjs') ? payload : require(name) });
   const apps = new Map();const views = new Map();
-  const manager = new exports.PersistentNotifications({ icon: '/qa/icon.png', app: id => apps.get(id), view: id => views.get(id) });
+  const activeApps = new Set();
+  const manager = new exports.PersistentNotifications({ icon: '/qa/icon.png', app: id => apps.get(id),
+    view: id => views.get(id), isActive: id => activeApps.has(id),
+    notificationsChanged: value => changes.push(value), activate() {} });
   function session() {
     const workers = new Map();const registered = [];const removed = [];
     const serviceWorkers = new EventEmitter();
@@ -37,16 +49,77 @@ function fixture() {
     return { value, registered, removed, workers };
   }
   const app = (id, url, session) => {
+    const sent = [];
+    const view = { session, sent, isDestroyed: () => false, sendToFrame: (...args) => sent.push(args) };
     const value = { id, url, notificationOrigin: new URL(url).origin };apps.set(id, value);
-    views.set(id, { session });return value;
+    views.set(id, view);return value;
   };
   const worker = scope => {
     const callbacks = new Map();return { scope, callbacks, ipc: { handle: (name, fn) => callbacks.set(name, fn), on() {} } };
   };
   const request = (ses, worker) => worker.callbacks.get('rokko:persistent-notification')(
     { session: ses, serviceWorker: worker }, { action: 'list', scope: worker.scope, tag: '' });
-  return { manager, session, app, worker, request, apps, views, handlers };
+  return { manager, session, app, worker, request, apps, views, handlers, nativeNotifications, changes, activeApps };
 }
+
+test('document notifications update the dock and return events to their frame', async () => {
+  const f = fixture();
+  const ses = f.session();
+  const app = f.app('app', 'https://same.example/', ses.value);
+  f.manager.configure(app, ses.value);
+  const handler = f.handlers.get('rokko:persistent-notification');
+  const result = await handler({
+    sender: f.views.get('app'),
+    senderFrame: { url: 'https://same.example/chat', processId: 7, routingId: 8 },
+  }, {
+    action: 'show', scope: 'https://same.example/chat', title: 'Message', body: 'Hello',
+    tag: '', data: 'null', silent: false, requireInteraction: false,
+  });
+  assert.equal(result.title, 'Message');
+  assert.equal(f.manager.counts().app, 1);
+  f.nativeNotifications[0].emit('click');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.views.get('app').sent[0][0][0], 7);
+  assert.equal(f.views.get('app').sent[0][0][1], 8);
+  assert.equal(f.views.get('app').sent[0][1], 'rokko:persistent-event');
+  assert.equal(f.views.get('app').sent[0][2].kind, 'notificationclick');
+  f.nativeNotifications[0].emit('close');
+  assert.equal(Object.keys(f.manager.counts()).length, 0);
+});
+
+test('Telegram badge counts repeated tagged notifications and clears when the service is opened', async () => {
+  const f = fixture();
+  const ses = f.session();
+  const app = f.app('telegram', 'https://web.telegram.org/', ses.value);
+  f.manager.configure(app, ses.value);
+  const handler = f.handlers.get('rokko:persistent-notification');
+  const sender = f.views.get('telegram');
+  const show = (title) => handler({
+    sender,
+    senderFrame: { url: 'https://web.telegram.org/a/', processId: 7, routingId: 8 },
+  }, {
+    action: 'show', scope: 'https://web.telegram.org/a/', title, body: 'Message',
+    tag: 'telegram-updates', data: 'null', silent: false, requireInteraction: false,
+  });
+
+  await show('First message');
+  await show('Second message');
+  assert.equal(f.manager.counts().telegram, 2);
+
+  f.manager.markRead('telegram');
+  assert.equal(f.manager.counts().telegram, undefined);
+  f.activeApps.add('telegram');
+  await show('Third message');
+  assert.equal(f.manager.counts().telegram, undefined);
+  f.activeApps.delete('telegram');
+  await show('Fourth message');
+  assert.equal(f.manager.counts().telegram, 1);
+  f.nativeNotifications.at(-1).emit('close');
+  assert.equal(f.manager.counts().telegram, 1);
+  await f.manager.closeApp('telegram');
+  assert.equal(f.manager.counts().telegram, undefined);
+});
+
 test('worker owner follows shared origin', async () => {
   const f = fixture();const ses = f.session();const worker = f.worker('https://second.example/');ses.workers.set(1, worker);
   f.manager.configure(f.app('first', 'https://first.example/', ses.value), ses.value);

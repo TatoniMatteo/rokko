@@ -1,6 +1,7 @@
+import { defaultHibernation, validateHibernation } from '../hibernation/rules.mjs';
 export function defaultPreferences(language = 'it') {
   return { version: 1, theme: 'system', seed: '#245dc5', language: language.startsWith('it') ? 'it' : 'en',
-    dock: 'left', cardOrder: [], hiddenWorkspaces: [], split: {secondaryId:null,ratio:0.5}, mutedServices: [] };
+    dock: 'left', cardOrder: [], hiddenWorkspaces: [], split: {secondaryId:null,ratio:0.5}, mutedServices: [], hibernation:defaultHibernation() };
 }
 export function validatePreferences(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
@@ -21,7 +22,7 @@ export function validatePreferences(input) {
       !Number.isFinite(split.ratio) || split.ratio < 0.25 || split.ratio > 0.75) throw new Error('Invalid split layout');
   const mutedServices = input.mutedServices ?? [];
   if (!Array.isArray(mutedServices) || mutedServices.length > 100 || new Set(mutedServices).size !== mutedServices.length || mutedServices.some(id => typeof id !== 'string' || !/^[\w-]{1,128}$/.test(id))) throw new Error('Invalid muted services');
-  return { ...input, split:{...split}, mutedServices:[...mutedServices], seed: input.seed.toLowerCase(), cardOrder: [...input.cardOrder], hiddenWorkspaces: [...input.hiddenWorkspaces] };
+  return { ...input, hibernation:validateHibernation(input.hibernation), split:{...split}, mutedServices:[...mutedServices], seed: input.seed.toLowerCase(), cardOrder: [...input.cardOrder], hiddenWorkspaces: [...input.hiddenWorkspaces] };
 }
 export function orderedCards(data, preferences) {
   const ids = ['global', ...data.workspaces.map(w => w.id)];
