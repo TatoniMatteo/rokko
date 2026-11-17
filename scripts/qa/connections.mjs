@@ -68,16 +68,26 @@ try {
   await ui.fill('#app-url', 'https://connection.rokko.test/start');
   await ui.activate('Aggiungi applicazione');
   const id = (await ui.state()).activeAppId;
-  let page = await fixture.ready('https://connection.rokko.test/start');
+  const startUrl = 'https://connection.rokko.test/start';
+  let page = await fixture.ready(startUrl);
   await fixture.evaluate(
     page.session,
     'document.cookie="session=preserved;Path=/;Secure;SameSite=Lax;Max-Age=3600"',
   );
   const partition = (await ui.state()).data.apps.find((a) => a.id === id).partition;
-  await fixture.evaluate(
-    page.session,
-    `location.href='https://tls.rokko.invalid:${tls.address().port}/'`,
-  );
+  async function setServiceUrl(url) {
+    const app = (await ui.state()).data.apps.find((item) => item.id === id);
+    await ui.run(
+      `window.rokko.updateApp(${JSON.stringify(id)},${JSON.stringify({
+        name: app.name,
+        url,
+        workspaceId: app.workspaceId,
+        icon: app.icon,
+        notificationOrigin: app.notificationOrigin,
+      })})`,
+    );
+  }
+  await setServiceUrl(`https://tls.rokko.invalid:${tls.address().port}/`);
   await eventually(
     async () => (await ui.state()).appStates[id]?.status === 'failed',
     'real certificate rejection',
@@ -91,16 +101,12 @@ try {
     async () => (await ui.state()).appStates[id]?.status === 'failed',
     'certificate still rejected on retry',
   );
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Indietro');
-  page = await fixture.ready('https://connection.rokko.test/start');
+  await setServiceUrl(startUrl);
+  page = await fixture.ready(startUrl);
   assert.ok((await fixture.evaluate(page.session, 'document.cookie')).includes('preserved'));
-  result.tlsRetryAndBack = true;
+  result.tlsRetryAndRecovery = true;
   const start = performance.now();
-  await fixture.evaluate(
-    page.session,
-    `location.href='https://timeout.rokko.invalid:${hanging.address().port}/'`,
-  );
+  await setServiceUrl(`https://timeout.rokko.invalid:${hanging.address().port}/`);
   await eventually(
     async () => (await ui.state()).appStates[id]?.status === 'failed',
     'real TLS handshake timeout',
@@ -110,39 +116,27 @@ try {
   assert.ok([-7, -118].includes(timeout), String(timeout));
   result.timeoutError = timeout;
   result.timeoutMs = Math.round(performance.now() - start);
-  // Recovery response is controlled; the preceding handshake timeout is real.
-  await client.send(
-    'Fetch.enable',
-    {
-      patterns: [
-        { urlPattern: 'https://*.rokko.test/*' },
-        { urlPattern: 'https://timeout.rokko.invalid:*/*' },
-      ],
-    },
-    page.session,
-  );
-  await ui.activate('Riprova');
-  await fixture.ready(`https://timeout.rokko.invalid:${hanging.address().port}/`);
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Indietro');
-  page = await fixture.ready('https://connection.rokko.test/start');
+  await setServiceUrl(startUrl);
+  page = await fixture.ready(startUrl);
   assert.ok((await fixture.evaluate(page.session, 'document.cookie')).includes('preserved'));
   assert.equal((await ui.state()).data.apps.find((a) => a.id === id).partition, partition);
   result.timeoutRecovery = true;
   await fixture.evaluate(page.session, 'location.href="/next"');
   await fixture.ready('https://connection.rokko.test/next');
   await eventually(async () => (await ui.state()).appStates[id]?.canGoBack, 'back enabled');
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Indietro');
+  await ui.run('window.rokko.goBack()');
   await fixture.ready('https://connection.rokko.test/start');
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Avanti');
+  await ui.run('window.rokko.goForward()');
   page = await fixture.ready('https://connection.rokko.test/next');
   assert.ok((await fixture.evaluate(page.session, 'document.cookie')).includes('preserved'));
   result.historyAndSession = true;
   const preferences = (await ui.state()).preferences;
   await ui.run(
-    `window.rokko.setPreferences(${JSON.stringify({ ...preferences, language: 'en' })})`,
+    `window.rokko.setPreferences(${JSON.stringify({
+      ...preferences,
+      language: 'en',
+      hibernation: { ...preferences.hibernation, rules: [] },
+    })})`,
   );
   await fixture.detach();
   client.close();

@@ -1,3 +1,4 @@
+import { suspensionLabel } from '../preferences/service-status';
 import { useState } from 'react';
 import type { AppSnapshot, RokkoAPI } from '../../shared/contracts/model';
 import { dockApps } from '../../shared/preferences/preferences.mjs';
@@ -46,6 +47,7 @@ export function ServiceTools({
       <Card>
         <h2>{t('Service health')}</h2>
         <p role="status">{health}</p>
+        {snapshot.suspendedIds?.includes(service.id)&&<p>{suspensionLabel(snapshot.suspensionReasons?.[service.id],t)}</p>}
         <Button
           variant="secondary"
           disabled={busy}

@@ -15,13 +15,14 @@ export function ApplicationSettingsPage({
   onSave,
   onCancel,
   onChange,
+  onHibernation,
   onPermissions,
   onDownloads,
+  onResources,
   onShortcuts,
   onImport,
   onConfiguration,
-  onManageServices,
-  onManageWorkspaces,
+  onOrganize,
 }: {
   preferences: Preferences;
   browserLanguage: string;
@@ -30,13 +31,14 @@ export function ApplicationSettingsPage({
   onSave: () => void;
   onCancel: () => void;
   onChange: (value: Preferences) => void;
+  onHibernation: () => void;
   onPermissions: () => void;
   onDownloads: () => void;
+  onResources: () => void;
   onShortcuts: () => void;
   onImport: () => void;
   onConfiguration: () => void;
-  onManageServices: () => void;
-  onManageWorkspaces: () => void;
+  onOrganize: () => void;
 }) {
   const t = useI18n();
   const [exporting, setExporting] = useState(false);
@@ -167,11 +169,12 @@ export function ApplicationSettingsPage({
         )}
         <div className="settings-tools">
           {[
+            [t('Service hibernation'), onHibernation],
             [t('Service permissions'), onPermissions],
             [t('Downloads'), onDownloads],
+            [t('Resource usage'), onResources],
             [t('Import and export'), onConfiguration],
-            [t('Configured services'), onManageServices],
-            [t('All workspaces'), onManageWorkspaces],
+            [t('Organize'), onOrganize],
             [t('Import from Rambox'), onImport],
           ].map(([label, action]) => (
             <button

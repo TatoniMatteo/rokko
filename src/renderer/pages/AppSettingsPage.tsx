@@ -17,6 +17,7 @@ interface AppSettingsPageProps {
   removalRequested?: number;
   onSave: () => void;
   onBack: () => void;
+  onHibernation: () => void;
   onRemove: () => void;
   onError: (message: string) => void;
 }
@@ -30,6 +31,7 @@ export function AppSettingsPage({
   busy,
   onSave,
   onBack,
+  onHibernation,
   onRemove,
   onError,
   removalRequested,
@@ -267,6 +269,11 @@ export function AppSettingsPage({
             </p>
           )}
         </section>
+        {app && <section className="settings-card full-width">
+          <h2>{t('Service hibernation')}</h2>
+          <p className="page-note">{t('Set inactivity and advanced rules for this service.')}</p>
+          <Button variant="secondary" onClick={onHibernation} disabled={busy}>{t('Configure hibernation')}</Button>
+        </section>}
         <div className="page-actions full-width">
           <Button className="primary" type="submit" aria-busy={busy} disabled={busy || readingIcon}>
             {busy ? t('Saving') : app ? t('Save changes') : t('Add application')}

@@ -1,9 +1,13 @@
+import { mergeLifecycleSnapshot } from '../shared/apps/lifecycle.mjs';
+import { HibernationPage } from './pages/HibernationPage';
 import { SplitSurface, SplitToolbar } from './components/SplitSurface';
 import { ServiceTools } from './components/ServiceTools';
+import { ExternalLinkDialog } from './components/ExternalLinkDialog';
 import { ConfigurationPage } from './pages/ConfigurationPage';
 import { QuickSwitchPage } from './pages/QuickSwitchPage';
 import { PermissionsPage } from './pages/PermissionsPage';
 import { DownloadsPage } from './pages/DownloadsPage';
+import { ResourcesPage } from './pages/ResourcesPage';
 import { SuspendedServicePage } from './pages/SuspendedServicePage';
 import { RecoveryPage } from './pages/RecoveryPage';
 import { ServiceControlsPage } from './pages/ServiceControlsPage';
@@ -11,12 +15,13 @@ import { ServiceErrorPage } from './pages/ServiceErrorPage';
 import { useServiceViewport } from './hooks/useServiceViewport';
 import { KeyboardShortcutsPage } from './pages/KeyboardShortcutsPage';
 import { Button } from './components/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react';
 import type {
   ContextMenuRequest,
   AppSnapshot,
   AppInput,
   AppLoadState,
+  ExternalLinkRequest,
   WebApp,
   Workspace,
 } from '../shared/contracts/model';
@@ -30,10 +35,11 @@ import { RamboxImportPage } from './pages/RamboxImportPage';
 import { DesignStyles } from './components/ui/DesignStyles';
 import { Icon } from './components/Icon';
 import { Dock } from './components/Dock';
+import { ThemedTooltip } from './components/ThemedTooltip';
 import { ManagementPage } from './pages/ManagementPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ApplicationSettingsPage } from './pages/ApplicationSettingsPage';
-import { defaultPreferences } from '../shared/preferences/preferences.mjs';
+import { defaultPreferences, orderedCards } from '../shared/preferences/preferences.mjs';
 import type { Preferences } from '../shared/preferences/preferences.mjs';
 import { LanguageContext, translate, errorMessage } from './preferences/i18n';
 
@@ -45,13 +51,16 @@ const initial: AppSnapshot = {
     selectedWorkspaceId: 'personal',
   },
   activeAppId: null,
+  externalLinkRequests: [],
 };
 
 type Page =
+  | 'hibernation'
   | 'configuration'
   | 'quick'
   | 'permissions'
   | 'downloads'
+  | 'resources'
   | 'home'
   | 'catalog'
   | 'app'
@@ -65,7 +74,12 @@ type Page =
   | 'services'
   | 'workspaces';
 export function App() {
-  const [snapshot, setSnapshot] = useState<AppSnapshot>(initial);
+  const [snapshot, updateSnapshot] = useState<AppSnapshot>(initial);
+  const [externalLinkRequests, setExternalLinkRequests] = useState<ExternalLinkRequest[]>([]);
+  const setSnapshot=useCallback((value:SetStateAction<AppSnapshot>)=>updateSnapshot(previous=>{
+    const next=typeof value==='function'?value(previous):value;
+    return mergeLifecycleSnapshot(previous,next);
+  }),[]);
   const [appStates, setAppStates] = useState<Record<string, AppLoadState>>({});
   const [page, setPage] = useState<Page>('dashboard');
   const quickReturn = useRef<Page>('dashboard');
@@ -74,6 +88,7 @@ export function App() {
   const [managementWorkspace, setManagementWorkspace] = useState<string | undefined>();
   const [editReturn, setEditReturn] = useState<Page>('services');
   const [removalRequested, setRemovalRequested] = useState(0);
+  const [hibernationServiceId, setHibernationServiceId] = useState<string | null>(null);
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AppInput>({ name: '', url: '', workspaceId: 'personal' });
@@ -123,16 +138,18 @@ export function App() {
     document.documentElement.lang = preferences.language;
   }, [preferences.language]);
 
+  useEffect(() => window.rokko.onExternalLinkRequests(setExternalLinkRequests), []);
   useEffect(() => {
     void window.rokko
       .getSnapshot()
       .then((value) => {
         setSnapshot(value);
+        setExternalLinkRequests(value.externalLinkRequests ?? []);
         setAppStates(value.appStates ?? {});
         setPage(value.activeAppId ? 'home' : 'dashboard');
       })
       .catch((e) => setError(errorMessage(e)));
-  }, []);
+  }, [setSnapshot]);
   useEffect(
     () =>
       window.rokko.onAppState((id, state) =>
@@ -151,8 +168,9 @@ export function App() {
         setSnapshot(value);
         setPage(value.activeAppId ? 'home' : 'dashboard');
       }),
-    [],
+    [setSnapshot],
   );
+  useEffect(()=>window.rokko.onLifecycle(state=>setSnapshot(previous=>({...previous,...state}))),[setSnapshot]);
   const run = useCallback(async (action: () => Promise<AppSnapshot>, nextPage?: Page) => {
     setBusy(true);
     setError('');
@@ -170,7 +188,7 @@ export function App() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [setSnapshot]);
   useEffect(() => {
     const online = () => {
       void window.rokko.recoverConnections().catch(() => {});
@@ -183,7 +201,7 @@ export function App() {
       window.rokko.onPermissions((permissionState) =>
         setSnapshot((previous) => ({ ...previous, permissionState })),
       ),
-    [],
+    [setSnapshot],
   );
   const browserAction = async (action: () => Promise<void>): Promise<void> => {
     try {
@@ -314,6 +332,13 @@ export function App() {
     }
     await run(() => window.rokko.selectApp(service.id), 'home');
   }
+  function openHibernation(serviceId: string | null = null) {
+    requestNavigation(() => {
+      setHibernationServiceId(serviceId);
+      setPage('hibernation');
+      setError('');
+    });
+  }
   async function contextMenu(input: ContextMenuRequest) {
     try {
       const action = await window.rokko.showContextMenu(input);
@@ -325,6 +350,14 @@ export function App() {
           requestNavigation(() => {
             void openService(service);
           });
+        else if (action === 'suspend') await run(() => window.rokko.suspendService(service.id));
+        else if (action === 'resume')
+          requestNavigation(() => {
+            void (async () => {
+              if (await run(() => window.rokko.resumeService(service.id))) await openService(service);
+            })();
+          });
+        else if (action === 'hibernation') openHibernation(service.id);
         else if (action === 'controls')
           requestNavigation(() => {
             void run(() => window.rokko.selectApp(service.id), 'controls');
@@ -382,6 +415,7 @@ export function App() {
           seed={preferences.seed}
           dark={preferences.theme === 'dark' || (preferences.theme === 'system' && systemDark)}
         />
+        <ThemedTooltip />
         <div className="app-shell">
           <main className="work-area">
             <div className="web-content" ref={contentRef}>
@@ -393,6 +427,17 @@ export function App() {
                 onRecover={(action) => void run(() => window.rokko.recoverProfile(action), 'home')}
               />
             </div>
+            {externalLinkRequests[0] && (
+              <ExternalLinkDialog
+                key={externalLinkRequests[0].id}
+                request={externalLinkRequests[0]}
+                onResolve={action => {
+                  void window.rokko
+                    .resolveExternalLinkRequest(externalLinkRequests[0].id, action)
+                    .catch(error => setError(errorMessage(error)));
+                }}
+              />
+            )}
           </main>
         </div>
       </LanguageContext>
@@ -403,10 +448,13 @@ export function App() {
         seed={preferences.seed}
         dark={preferences.theme === 'dark' || (preferences.theme === 'system' && systemDark)}
       />
+      <ThemedTooltip />
       <div className={`app-shell dock-${preferences.dock}`}>
         <Dock
           data={snapshot.data}
+          lifecycle={{...snapshot,appStates}}
           preferences={preferences}
+          disabled={busy}
           activeId={snapshot.activeAppId}
           page={page}
           onHome={() =>
@@ -421,18 +469,14 @@ export function App() {
               void run(() => window.rokko.selectApp(id), 'home');
             })
           }
+          onMoveApp={(id, target, after) => run(() => window.rokko.moveApp(id, target, after))}
+          onMoveWorkspace={(id, target, after) => {
+            const order = orderedCards(snapshot.data, savedPreferences).filter(value => value !== id);
+            order.splice(order.indexOf(target) + (after ? 1 : 0), 0, id);
+            return savePreferences({ ...savedPreferences, cardOrder: order });
+          }}
           onContext={(input) => void contextMenu(input)}
         />
-        {page === 'home' && active && (
-          <button
-            className="service-menu icon-btn"
-            aria-label={t('Service controls')}
-            title={t('Service controls')}
-            onClick={() => navigate('controls')}
-          >
-            <Icon name="more" />
-          </button>
-        )}
         <main className="work-area">
           {page !== 'permissions' && Boolean(snapshot.permissionState?.requests.length) && (
             <section className="inline-confirm" role="status">
@@ -533,25 +577,17 @@ export function App() {
               <DashboardPage
                 data={snapshot.data}
                 preferences={preferences}
-                busy={busy}
-                onPreferences={savePreferences}
-                onMoveApp={(id, target, after) =>
-                  run(() => window.rokko.moveApp(id, target, after))
-                }
-                onEditApp={(service) => openApp(undefined, service)}
-                onEditWorkspace={openWorkspace}
                 onNewWorkspace={() => openWorkspace()}
                 onCatalog={() => navigate('catalog')}
                 onImport={() => navigate('import')}
-                onManageServices={() => manageServices()}
-                onManageWorkspaces={() => navigate('workspaces')}
-                onContext={(input) => void contextMenu(input)}
+                onOrganize={(id) => manageServices(id)}
               />
             )}
             {(page === 'services' || page === 'workspaces') && (
               <ManagementPage
                 key={page + (managementWorkspace ?? '')}
                 mode={page}
+                onMode={navigate}
                 onContext={(input) => void contextMenu(input)}
                 data={snapshot.data}
                 preferences={preferences}
@@ -596,17 +632,19 @@ export function App() {
                   setError('');
                   setPendingNavigation(null);
                 }}
+                onHibernation={()=>openHibernation()}
                 onPermissions={() => navigate('permissions')}
                 onDownloads={() => navigate('downloads')}
+                onResources={() => navigate('resources')}
                 onShortcuts={() => navigate('shortcuts')}
                 onConfiguration={() => navigate('configuration')}
                 onImport={() => navigate('import')}
-                onManageServices={() => manageServices()}
-                onManageWorkspaces={() => navigate('workspaces')}
+                onOrganize={() => manageServices()}
               />
             )}
             {page === 'controls' && active && (
               <ServiceControlsPage
+                onHibernation={() => openHibernation(active.id)}
                 name={active.name}
                 tools={<ServiceTools snapshot={{...snapshot,appStates}} onUpdate={setSnapshot}/>}
                 suspended={serviceSuspended}
@@ -643,6 +681,7 @@ export function App() {
             )}
             {page === 'home' && active && !secondary && serviceSuspended && (
               <SuspendedServicePage
+                reason={snapshot.suspensionReasons?.[active.id]}
                 busy={busy}
                 onResume={() => void run(() => window.rokko.resumeService(active.id), 'home')}
               />
@@ -665,8 +704,24 @@ export function App() {
               />
             )}
             {page === 'home' && active && secondary && <SplitSurface key={active.id+secondary.id} snapshot={{...snapshot,appStates}} primary={active} secondary={secondary} onUpdate={setSnapshot} onError={e=>setError(errorMessage(e))}/>}
+            {page === 'hibernation' && (
+              <HibernationPage
+                key={hibernationServiceId ?? 'general'}
+                service={snapshot.data.apps.find(service => service.id === hibernationServiceId)}
+                snapshot={snapshot}
+                busy={busy}
+                onDirty={setDirty}
+                onSave={policy => run(() => window.rokko.setPreferences({ ...savedPreferences, hibernation: policy }))}
+              />
+            )}
             {page === 'configuration' && <ConfigurationPage onImported={setSnapshot} />}
             {page === 'downloads' && <DownloadsPage services={snapshot.data.apps} />}
+            {page === 'resources' && (
+              <ResourcesPage
+                services={snapshot.data.apps}
+                workspaces={snapshot.data.workspaces}
+              />
+            )}
             {page === 'shortcuts' && <KeyboardShortcutsPage />}
             {page === 'import' && (
               <RamboxImportPage data={snapshot.data} onImported={setSnapshot} />
@@ -676,6 +731,7 @@ export function App() {
               <AppSettingsPage
                 key={editingAppId ?? draftKey}
                 app={editingApp}
+                onHibernation={() => editingApp && openHibernation(editingApp.id)}
                 draft={draft}
                 onDraft={changeDraft}
                 workspaces={snapshot.data.workspaces}
@@ -732,6 +788,17 @@ export function App() {
               />
             )}
           </div>
+          {externalLinkRequests[0] && (
+            <ExternalLinkDialog
+              key={externalLinkRequests[0].id}
+              request={externalLinkRequests[0]}
+              onResolve={action => {
+                void window.rokko
+                  .resolveExternalLinkRequest(externalLinkRequests[0].id, action)
+                  .catch(error => setError(errorMessage(error)));
+              }}
+            />
+          )}
         </main>
       </div>
     </LanguageContext>

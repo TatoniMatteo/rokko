@@ -20,6 +20,7 @@ legacy.data.workspaces = [
   { id: 'b', name: 'Workspace B' },
 ];
 legacy.data.selectedWorkspaceId = 'a';
+legacy.preferences.hibernation.rules = []; // This suite opens services; startup behavior has separate coverage.
 legacy.data.apps = [
   ['p1', 'a', false],
   ['p2', 'a', false],
@@ -69,6 +70,23 @@ async function update(id, changes) {
   const app = (await state()).data.apps.find((app) => app.id === id);
   return run(
     `window.rokko.updateApp(${JSON.stringify(id)},${JSON.stringify({ name: app.name, url: app.url, workspaceId: app.workspaceId, icon: app.icon, notificationOrigin: app.notificationOrigin, ...changes })})`,
+  );
+}
+async function cancelExternalRequest(url) {
+  const request = await eventually(
+    async () => (await state()).externalLinkRequests?.find((item) => item.url === url),
+    'external link confirmation',
+  );
+  assert.ok(
+    (await client.send('Target.getTargets')).targetInfos.every((target) => target.url !== url),
+  );
+  await run(
+    `window.rokko.resolveExternalLinkRequest(${JSON.stringify(request.id)},"cancel")`,
+  );
+  await eventually(
+    async () =>
+      !(await state()).externalLinkRequests?.some((item) => item.id === request.id),
+    'external link cancellation',
   );
 }
 try {
@@ -160,29 +178,14 @@ try {
   result.customAndFallback = true;
   const remote = await show('p2');
   await remote.evaluate('location.href="http://blocked.rokko.test/"');
-  await eventually(
-    async () => (await state()).appStates.p2?.error === 'blocked',
-    'blocked navigation',
-  );
-  assert.ok(
-    (await client.send('Target.getTargets')).targetInfos.every(
-      (t) => t.url !== 'http://blocked.rokko.test/',
-    ),
-  );
+  await cancelExternalRequest('http://blocked.rokko.test/');
+  await fixture.ready('https://login.rokko.test/p2');
   await run('window.rokko.reload()');
   await fixture.ready('https://login.rokko.test/p2');
   result.navigationPolicy = true;
   const redirectPage = await fixture.ready('https://login.rokko.test/p2');
   await fixture.evaluate(redirectPage.session, 'location.href="/redirect-http"');
-  await eventually(
-    async () => (await state()).appStates.p2?.error === 'blocked',
-    'blocked redirect',
-  );
-  assert.ok(
-    (await client.send('Target.getTargets')).targetInfos.every(
-      (t) => t.url !== 'http://blocked.rokko.test/',
-    ),
-  );
+  await cancelExternalRequest('http://blocked.rokko.test/');
   await run('window.rokko.reload()');
   const recoveredPage = await fixture.ready('https://login.rokko.test/p2');
   assert.equal(

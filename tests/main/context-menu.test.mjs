@@ -8,12 +8,19 @@ test('context menu guards',()=>{
 });
 test('context menus stay scoped',()=>{
   const service=contextMenuItems(data,{kind:'service',id:'a'},'it');
-  assert.deepEqual(service.map(i=>i.action),['open','edit','reload','browser','controls','remove']);
-  assert.equal(service[2].enabled,false);
-  assert.equal(contextMenuItems(data,{kind:'service',id:'a'},'en',['a'])[2].enabled,true);
+  assert.deepEqual(service.map(i=>i.action),['open','suspend','edit','reload','browser','hibernation','controls','remove']);
+  assert.equal(service[3].enabled,false);
+  assert.equal(contextMenuItems(data,{kind:'service',id:'a'},'en',['a'])[3].enabled,true);
   assert.equal(service[0].label,'Apri applicazione');
   assert.equal(contextMenuItems(data,{kind:'workspace',id:'w'},'en')[0].label,'Workspace settings');
   assert.deepEqual(contextMenuItems(data,{kind:'workspace',id:'w'},'it').map(i=>i.action),['edit','services','hide','reorder','remove']);
   assert.equal(contextMenuItems(data,{kind:'workspace',id:'w'},'en',[],['w'])[2].action,'show');
   assert.deepEqual(contextMenuItems(data,{kind:'global',id:'global'},'en').map(i=>i.action),['services']);
+});
+
+test('hibernation shortcut',()=>{
+  assert.equal(contextMenuItems(data,{kind:'service',id:'a'},'it')[1].label,'Iberna');
+  const resumed=contextMenuItems(data,{kind:'service',id:'a'},'en',[],[],['a'])[1];
+  assert.equal(resumed.action,'resume');
+  assert.equal(resumed.label,'Resume');
 });

@@ -21,7 +21,14 @@ export interface ProfileRecovery { kind: 'future' | 'legacy' | 'corrupt'; canRes
 export type MediaCapability = 'camera'|'microphone'|'screen';
 export interface PermissionPrompt {id:string;appId:string;origin:string;capabilities:MediaCapability[];sources?:{id:string;name:string}[]}
 export interface PermissionState {requests:PermissionPrompt[];grants:{appId:string;origin:string;capabilities:MediaCapability[]}[]}
+export interface ServiceLifecycle {
+  lifecycleRevision:number;
+  loadedIds:string[];suspendedIds:string[];
+  suspensionReasons:Record<string,import('../hibernation/rules.mjs').SuspensionReason>;
+}
 export interface AppSnapshot {
+  lifecycleRevision?:number;
+  suspensionReasons?:ServiceLifecycle['suspensionReasons'];
   loadedIds?: string[];
   permissionState?: PermissionState;
   suspendedIds?: string[];
@@ -30,8 +37,18 @@ export interface AppSnapshot {
   data: AppData;
   activeAppId: string | null;
   appStates?: Record<string, AppLoadState>;
+  notificationCounts?: Record<string, number>;
+  externalLinkRequests?: ExternalLinkRequest[];
   preferences?: Preferences;
   browserLanguage?: string;
+}
+export interface ExternalLinkRequest {
+  id: string;
+  appId: string;
+  serviceName: string;
+  url: string;
+  label: string;
+  canOpenInApp: boolean;
 }
 export interface AppLoadState {
   status: 'loading' | 'ready' | 'failed';
@@ -41,10 +58,24 @@ export interface AppLoadState {
   error?: number | 'blocked' | 'crashed';
 }
 export interface DownloadInfo {id:string;serviceId:string;filename:string;canCancel:boolean;received:number;total:number;state:'progressing'|'interrupted'|'completed'|'cancelled'}
+export interface ServiceResourceUsage {
+  id: string;
+  processId: number | null;
+  cpuPercent: number;
+  memoryBytes: number;
+  sharedWith: string[];
+}
+export interface ResourceUsageSnapshot {
+  sampledAt: number;
+  processCount: number;
+  total: { cpuPercent: number; memoryBytes: number };
+  services: ServiceResourceUsage[];
+}
 export interface ViewBounds { x: number; y: number; width: number; height: number }
 export interface ContextMenuRequest { kind: 'service' | 'workspace' | 'global'; id: string }
-export type ContextMenuAction = 'open' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show' | 'controls' | 'remove' | 'reorder';
+export type ContextMenuAction = 'open' | 'suspend' | 'resume' | 'hibernation' | 'edit' | 'reload' | 'browser' | 'services' | 'hide' | 'show' | 'controls' | 'remove' | 'reorder';
 export interface RokkoAPI {
+  onLifecycle(callback:(state:ServiceLifecycle)=>void):()=>void;
   setSplit(secondaryId:string|null,ratio:number):Promise<AppSnapshot>;
   previewSplitRatio(ratio:number):void;
   controlService(id:string,action:'mute'|'unmute'|'reload'|'reset-permissions'|'clear-cache'):Promise<AppSnapshot>;
@@ -54,6 +85,8 @@ export interface RokkoAPI {
   importConfiguration(input:import('../import/configuration.mjs').Configuration,options:import('../import/configuration.mjs').ConfigurationImportOptions):Promise<AppSnapshot & {importSummary:{added:number;skipped:number}}>;
 
   onQuickSwitch(callback: () => void): () => void;
+  onExternalLinkRequests(callback: (requests: ExternalLinkRequest[]) => void): () => void;
+  resolveExternalLinkRequest(id: string, action: 'cancel' | 'external' | 'internal'): Promise<void>;
   focusService(): Promise<void>;
   onPermissions(callback:(state:PermissionState)=>void):()=>void;
   respondPermission(id:string,allow:boolean,source?:string):Promise<void>;
@@ -62,6 +95,7 @@ export interface RokkoAPI {
   resumeService(id: string): Promise<AppSnapshot>;
   recoverConnections(): Promise<void>;
   getDownloads(): Promise<DownloadInfo[]>;
+  getResourceUsage(): Promise<ResourceUsageSnapshot>;
   cancelDownload(id:string): Promise<void>;
   onDownloads(callback:(downloads:DownloadInfo[])=>void):()=>void;
   exportDiagnostics(): Promise<boolean>;

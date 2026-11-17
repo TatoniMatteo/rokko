@@ -7,6 +7,14 @@ export function externalLink(value) {
       return null;
     const url = new URL(value);
     if (url.protocol === 'https:') return { url: normalizeHttpsUrl(value), label: url.origin };
+    if (
+      url.protocol === 'http:' &&
+      url.hostname &&
+      !url.username &&
+      !url.password &&
+      !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase())
+    )
+      return { url: url.href, label: url.origin };
     if (url.host || url.username || url.password) return null;
     if (url.protocol === 'mailto:') {
       const addresses = decodeURIComponent(url.pathname).split(',');
