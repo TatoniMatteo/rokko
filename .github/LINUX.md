@@ -6,10 +6,12 @@ account Rokko né un servizio di sincronizzazione remoto.
 
 ## Installazione
 
-Finché il gate di rilascio non è concluso, gli artefatti del workflow sono candidati di prova,
-non una release Linux supportata. DEB richiede i metadati pubblici del manutentore; non usare
-pacchetti di un'architettura diversa dal computer. Il pacchetto include il runtime desktop:
-Node e pnpm servono solo per lo sviluppo.
+Scarica il pacchetto da [GitHub Releases](https://github.com/TatoniMatteo/rokko/releases)
+per l'architettura del computer. Su Ubuntu e distribuzioni compatibili con il DEB puoi
+installarlo con `sudo apt install ./<file>.deb`. Su altri desktop Linux compatibili puoi
+rendere eseguibile l'AppImage con `chmod +x <file>.AppImage` e avviarla. L'AppImage dipende
+da glibc, dal supporto FUSE e dalle policy del sandbox Chromium del sistema.
+Il pacchetto include il runtime desktop. Node e pnpm servono per lo sviluppo.
 
 Su Ubuntu con restrizioni dei namespace utente è necessaria una policy AppArmor dedicata.
 Seguire il messaggio del launcher o le istruzioni del pacchetto. Non usare `--no-sandbox`

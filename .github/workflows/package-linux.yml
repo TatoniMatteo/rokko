@@ -1,9 +1,11 @@
-name: Linux packages (no publication)
+name: Linux packages and releases
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       target:
-        description: Package format (DEB requires public maintainer metadata)
+        description: Package format for a build without publication
         type: choice
         default: AppImage
         options: [AppImage, deb, both]
@@ -25,18 +27,23 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
       - name: Install build-only packaging tools
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y librsvg2-bin squashfs-tools xvfb xauth dbus-x11 openbox x11-utils apparmor libgtk-3-0t64 libnss3 libgbm1 libasound2t64
       - run: npm install --global corepack@0.36.0
+      - name: Verify release tag matches the package version
+        if: github.ref_type == 'tag'
+        run: test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm check
       - run: corepack pnpm audit --audit-level high
       - name: Build selected native packages
         env:
-          PACKAGE_TARGET: ${{ inputs.target }}
+          PACKAGE_TARGET: ${{ github.event_name == 'push' && 'both' || inputs.target }}
         run: |
           case "$PACKAGE_TARGET" in
             AppImage|deb) corepack pnpm package:linux "$PACKAGE_TARGET" ;;
@@ -45,8 +52,10 @@ jobs:
           esac
       - run: corepack pnpm release:verify dist/linux-${{ matrix.arch }}
       - name: Extract verified package for runtime smoke
+        if: github.event_name == 'push' || inputs.target != 'deb'
         run: corepack pnpm smoke:prepare --artifacts dist/linux-${{ matrix.arch }}
       - name: Load targeted test profile when Ubuntu requires it
+        if: github.event_name == 'push' || inputs.target != 'deb'
         id: userns
         run: |
           if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ]; then
@@ -54,6 +63,7 @@ jobs:
             echo "loaded=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Check packaged UI and restart persistence on virtual X11
+        if: github.event_name == 'push' || inputs.target != 'deb'
         run: >-
           xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm smoke:linux
           --prepared .codex/tasks/linux-release/prepared-smoke/prepared.json
@@ -61,12 +71,31 @@ jobs:
       - name: Unload test profile
         if: ${{ always() && steps.userns.outputs.loaded == 'true' }}
         run: sudo apparmor_parser --remove .codex/tasks/linux-release/prepared-smoke/apparmor-profile
+      - name: Install and smoke-test the DEB on virtual X11
+        if: github.event_name == 'push' || inputs.target != 'AppImage'
+        run: |
+          deb=("$PWD"/dist/linux-${{ matrix.arch }}/*.deb)
+          test "${#deb[@]}" -eq 1
+          sudo apt-get install -y "${deb[0]}"
+          test -r /usr/share/applications/dev.rokko.desktop
+          grep -Fx 'Exec=/opt/Rokko/rokko %U' /usr/share/applications/dev.rokko.desktop
+          if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ]; then
+            sudo cmp /opt/Rokko/resources/apparmor-profile /etc/apparmor.d/rokko
+          fi
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh \
+            corepack pnpm smoke:linux --executable /opt/Rokko/rokko --x11 \
+            --output .codex/tasks/linux-release/deb-smoke
+          sudo apt-get remove -y rokko
+          test ! -e /usr/share/applications/dev.rokko.desktop
       - name: Upload isolated runtime diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rokko-linux-${{ matrix.arch }}-smoke
-          path: .codex/tasks/linux-release/smoke-output/
+          path: |
+            .codex/tasks/linux-release/smoke-output/
+            .codex/tasks/linux-release/deb-smoke/
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -83,3 +112,41 @@ jobs:
             dist/linux-${{ matrix.arch }}/THIRD-PARTY-NOTICES.txt
           if-no-files-found: error
           retention-days: 14
+  release:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Publish validated Linux packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          for arch in x64 arm64; do
+            gh run download "$GITHUB_RUN_ID" --name "rokko-linux-$arch-candidate" --dir "$arch"
+            (
+              cd "$arch"
+              sha256sum --check SHA256SUMS.txt
+              zip "../rokko-linux-$arch-build-info.zip" \
+                manifest.json SHA256SUMS.txt BUILD-NOTES.txt sbom.cdx.json licenses.json THIRD-PARTY-NOTICES.txt
+            )
+          done
+          version="${GITHUB_REF_NAME#v}"
+          packages=()
+          for arch in x64 arm64; do
+            for extension in deb AppImage; do
+              file="$arch/rokko-$version-linux-$arch.$extension"
+              test -f "$file"
+              packages+=("$file")
+            done
+          done
+          sha256sum "${packages[@]}" | sed -E 's@  (x64|arm64)/@  @' > SHA256SUMS.txt
+          flags=()
+          if [[ "$version" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes "${flags[@]}" \
+            --notes 'Linux x86-64 and ARM64. Use the DEB on supported Ubuntu/Debian-based desktops, or the AppImage on compatible Linux desktops. AppImage requires a compatible glibc and Chromium sandbox support. The packages are unsigned. SHA256SUMS.txt verifies download integrity.' \
+            "${packages[@]}" SHA256SUMS.txt rokko-linux-{x64,arm64}-build-info.zip

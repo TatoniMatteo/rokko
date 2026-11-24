@@ -1,7 +1,10 @@
 # Rilascio Linux
 
-Il workflow `Linux packages (no publication)` costruisce candidati nativi x64 e ARM64.
-Non pubblica release né attiva aggiornamenti automatici. I pacchetti unsigned sono sperimentali.
+Il workflow `Linux packages and releases` costruisce pacchetti nativi x64 e ARM64.
+L'avvio manuale genera candidati scaricabili dal run. Il push di un tag `v<versione>` che
+corrisponde a `package.json` pubblica DEB, AppImage, checksum e report su GitHub Releases
+dopo le verifiche di entrambe le architetture. Un suffisso come `-alpha.4` produce una
+prerelease. I pacchetti sono unsigned e gli aggiornamenti si installano manualmente.
 
 ## Prima della pubblicazione
 
