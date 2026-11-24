@@ -5,6 +5,10 @@
   "description": "Rokko \u2014 Linux-first local workspace for web apps",
   "main": "./out/main/index.js",
   "license": "GPL-3.0-or-later",
+  "author": {
+    "name": "Matato",
+    "email": "tatonimatteo@gmail.com"
+  },
   "type": "module",
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
