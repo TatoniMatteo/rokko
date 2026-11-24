@@ -91,8 +91,10 @@ try {
   const snapshot = await ui.state();
   const alpha = snapshot.data.apps.find((a) => a.name === 'Alpha'),
     betaService = snapshot.data.apps.find((a) => a.name === 'Beta');
-  await ui.activate('Controlli del servizio');
-  await ui.select('#split-service', betaService.id);
+  await ui.activate('Alpha');
+  await ui.run(
+    `window.rokko.setSplit(${JSON.stringify(betaService.id)},${snapshot.preferences.split.ratio})`,
+  );
   await ui.activate('Alpha');
   await eventually(async () => {
     const s = await native({ action: 'status' });
@@ -109,8 +111,7 @@ try {
     'persisted split ratio',
   );
   result.splitViews = true;
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Silenzia servizio');
+  await ui.run(`window.rokko.controlService(${JSON.stringify(alpha.id)},'mute')`);
   await eventually(
     async () =>
       (await native({ action: 'status' })).contents.find(
@@ -127,12 +128,10 @@ try {
     alphaPage.session,
     'document.cookie="safe=kept;Secure;Path=/;SameSite=Lax";localStorage.setItem("safe","kept")',
   );
-  await ui.activate('Svuota cache HTTP');
-  await ui.activate('Conferma');
+  await ui.run(`window.rokko.controlService(${JSON.stringify(alpha.id)},'clear-cache')`);
   assert.ok((await fixture.evaluate(alphaPage.session, 'document.cookie')).includes('safe=kept'));
   assert.equal(await fixture.evaluate(alphaPage.session, 'localStorage.getItem("safe")'), 'kept');
-  await ui.activate('Reimposta permessi del servizio');
-  await ui.activate('Conferma');
+  await ui.run(`window.rokko.controlService(${JSON.stringify(alpha.id)},'reset-permissions')`);
   await ui.activate('Alpha');
   const newAlpha = await fixture.ready('https://alpha.rokko.test/');
   assert.ok((await fixture.evaluate(newAlpha.session, 'document.cookie')).includes('safe=kept'));

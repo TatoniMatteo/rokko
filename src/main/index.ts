@@ -338,6 +338,10 @@ function syncNotificationViews(): void {
 function redrawView(): void {
   if (shutdown || !win || !shellView) return;
   hibernation?.reconcile();
+  const focused = win.contentView.children.find(
+    (view): view is WebContentsView =>
+      view instanceof WebContentsView && view !== shellView && view.webContents.isFocused(),
+  );
   detachViews();
   const primary = selectedApp();
   if (!primary || overlayOpen) return;
@@ -352,6 +356,7 @@ function redrawView(): void {
     view.setBounds(rectangles[index]);
     win.contentView.addChildView(view);
   }
+  if (focused && win.contentView.children.includes(focused)) focused.webContents.focus();
 }
 const externalPrompts = new Map<Electron.WebContents, ExternalLinkRequest>();
 function pendingExternalLinks(): ExternalLinkRequest[] { return [...externalPrompts.values()]; }

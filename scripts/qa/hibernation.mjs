@@ -67,7 +67,14 @@ try {
   fixture = await serviceFixture(client, { intercept: false });
   const ui = interfaceDriver(browser);
   result.runtime = await browser.command('Browser.getVersion');
-  assert.equal((await ui.state()).preferences.hibernation.hiddenWorkspaces, true);
+  const initialPreferences = (await ui.state()).preferences;
+  assert.equal(initialPreferences.hibernation.hiddenWorkspaces, true);
+  await ui.run(
+    `window.rokko.setPreferences(${JSON.stringify({
+      ...initialPreferences,
+      hibernation: { ...initialPreferences.hibernation, rules: [] },
+    })})`,
+  );
   async function add(name, global = false) {
     await ui.activate('Home');
     await ui.activate('Aggiungi applicazione');
@@ -112,13 +119,18 @@ try {
 
   const badge = (id) =>
     ui.run(`document.querySelector('[data-app-id="${id}"]')?.dataset.serviceStatus`);
+  async function showWorkspaces() {
+    await ui.activate('Impostazioni');
+    await ui.activate('Organizza');
+    await ui.activate('Workspace');
+  }
   assert.equal(await badge(first.id), 'running');
   assert.equal(await badge(global.id), 'running');
   assert.equal(
     await ui.run(`document.querySelector('[data-app-id="${first.id}"] .service-status') === null`),
     true,
   );
-  await ui.activate('Home');
+  await showWorkspaces();
   await ui.focus('[role=switch]');
   await ui.key(' ');
   await eventually(async () => {
@@ -162,12 +174,11 @@ try {
   );
   await eventually(() => badge(first.id).then((value) => value === 'running'), 'resumed badge');
   result.sessionsPreserved = true;
-  await ui.activate('First');
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Configura ibernazione');
-  await ui.heading('Ibernazione dei servizi · First');
+  await ui.activate('Impostazioni');
+  await ui.activate('Ibernazione dei servizi');
+  await ui.heading('Ibernazione dei servizi');
   await ui.activate('Aggiungi regola automatica');
-  assert.equal(await ui.run(`document.querySelector('[id^="scope-"]') === null`), true);
+  await ui.select('select[id^="scope-"]', `service:${first.id}`);
   await ui.select('.hibernation-condition select', 'outside-workspace');
   await ui.activate('Salva modifiche');
   await eventually(
@@ -184,32 +195,35 @@ try {
   );
   await eventually(() => badge(first.id).then((value) => value === 'suspended'), 'suspended badge');
   await ui.activate('First');
+  await ui.activate('Riprendi servizio');
   await fixture.ready(origin + '/First');
   await eventually(
     () => badge(first.id).then((value) => value === 'running'),
-    'click wakes automatically',
+    'resume wakes service',
   );
   result.rulesAndBadges = true;
   assert.equal((await ui.state()).preferences.hibernation.rules[0].scope.id, first.id);
   result.perServiceAdvancedRules = true;
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Iberna');
+  await ui.run(`window.rokko.suspendService(${JSON.stringify(first.id)})`);
   assert.equal((await ui.state()).suspensionReasons[first.id].kind, 'manual');
   await ui.activate('Impostazioni');
   await ui.activate('Ibernazione dei servizi');
   await ui.activate('Rimuovi regola');
   await ui.activate('Salva modifiche');
+  await eventually(
+    async () => (await ui.state()).preferences.hibernation.rules.length === 0,
+    'removed rule',
+  );
   assert.ok((await ui.state()).suspendedIds.includes(first.id));
   await ui.activate('First');
   await ui.activate('Riprendi servizio');
   await fixture.ready(origin + '/First');
   result.manualIndependent = true;
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Modifica applicazione');
-  await ui.activate('Configura ibernazione');
-  await ui.heading('Ibernazione dei servizi · First');
-  await ui.focus('input[type=checkbox]');
-  await ui.key(' ');
+  await ui.activate('Impostazioni');
+  await ui.activate('Ibernazione dei servizi');
+  await ui.activate('Aggiungi regola automatica');
+  await ui.select('select[id^="scope-"]', `service:${first.id}`);
+  await ui.select('.hibernation-condition select', 'inactive');
   await ui.fill('input[type=number]', '1');
   await ui.activate('Salva modifiche');
   await eventually(
@@ -232,7 +246,7 @@ try {
   assert.ok(!(await ui.state()).suspendedIds.includes(global.id));
   result.realInactivityTimer = true;
   result.perServiceInactivity = true;
-  await ui.activate('Home');
+  await showWorkspaces();
   await ui.focus('[role=switch]');
   await ui.key(' ');
   await eventually(
