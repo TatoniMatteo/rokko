@@ -4,6 +4,7 @@ import { externalLink } from '../../src/shared/security/external-links.mjs';
 test('supported external destinations', () => {
   for (const url of [
     'https://example.com/path?q=x',
+    'http://example.com/path?q=x',
     'mailto:hello@example.com?subject=Hello',
     'tel:+3901234567',
   ])
@@ -15,6 +16,7 @@ test('external handlers reject unsafe input', () => {
     'javascript:alert(1)',
     'data:text/html,a',
     'ftp://example.com',
+    'http://localhost/path',
     'https://u:p@example.com',
     'mailto:a@example.com?bcc=secret@example.com',
     'mailto:a@example.com?subject=x%0d%0aBcc:secret',

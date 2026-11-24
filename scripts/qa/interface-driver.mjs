@@ -97,7 +97,7 @@ export function interfaceDriver(browser) {
     for (const node of interactive)
       assert.ok(node.name?.value, 'Unnamed accessible ' + node.role?.value);
     assert.ok(nodes.some((node) => node.role?.value === 'heading'));
-    assert.ok(nodes.some((node) => node.role?.value === 'navigation'));
+    assert.ok(nodes.some((node) => node.role?.value === 'toolbar'));
     assert.ok(nodes.some((node) => node.role?.value === 'main'));
     return nodes.map((node) => ({ role: node.role?.value, name: node.name?.value }));
   }

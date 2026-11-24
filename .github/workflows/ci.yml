@@ -76,6 +76,11 @@ jobs:
           xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh corepack pnpm qa:productivity
           --executable node_modules/electron/dist/electron
           --output .codex/tasks/ci-smoke/results/productivity --x11
+      - name: Check automatic hibernation, workspace workers and inactivity
+        run: >-
+          xvfb-run --auto-servernum dbus-run-session -- sh scripts/qa/x11-session.sh
+          corepack pnpm qa:hibernation --executable node_modules/electron/dist/electron
+          --output .codex/tasks/ci-smoke/results/hibernation --x11
       - name: Unload temporary sandbox profile
         if: ${{ always() && steps.sandbox.outputs.loaded == 'true' }}
         run: sudo apparmor_parser --remove .codex/tasks/ci-smoke/electron.apparmor

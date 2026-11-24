@@ -249,8 +249,7 @@ try {
 
   await showing('Linux A', '/first');
   firstPage = await page('/first');
-  await ui.activate('Controlli del servizio');
-  await ui.activate('Sospendi servizio');
+  await ui.run(`window.rokko.suspendService(${JSON.stringify(first)})`);
   await eventually(async () => (await ui.state()).suspendedIds.includes(first), 'suspended');
   assert.ok(
     (await native({ action: 'status' })).contents.every((w) => w.url !== origin + '/first'),
@@ -258,7 +257,7 @@ try {
   assert.ok(
     (await native({ action: 'status' })).contents.some((w) => w.url === origin + '/second'),
   );
-  await ui.activate('Riprendi servizio');
+  await ui.run(`window.rokko.resumeService(${JSON.stringify(first)})`);
   firstPage = await page('/first');
   assert.ok((await evaluate(firstPage.session, 'document.cookie')).includes('preserved'));
   result.suspensionPreservesPeerAndCookie = true;
@@ -308,13 +307,16 @@ try {
   result.resumeRecovery = true;
   await showing('Linux B', '/second');
   await evaluate(secondPage.session, 'window.open("file:///etc/passwd")');
+  assert.equal((await ui.state()).externalLinkRequests.length, 0);
   assert.equal((await native({ action: 'status' })).external.length, 0);
   await evaluate(secondPage.session, 'window.open("https://example.com/")');
   await eventually(
-    async () => (await native({ action: 'status' })).questions.length > 0,
+    () => ui.run('Boolean(document.querySelector(".external-link-dialog"))'),
     'external confirmation',
   );
   assert.equal((await native({ action: 'status' })).external.length, 0);
+  await ui.activate('Annulla');
+  await eventually(async () => (await ui.state()).externalLinkRequests.length === 0, 'link cancelled');
   await evaluate(
     secondPage.session,
     `window.open('https://accounts.google.com:${server.address().port}/oauth');void 0`,

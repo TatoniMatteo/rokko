@@ -28,7 +28,7 @@ ma conserva i dati della partizione precedente; le conseguenze devono essere vis
 
 Oggi il caricamento espone loading/ready/failed e la vista può essere assente. Il modello
 operativo distingue non creata, caricamento, attiva/background, errore e rimossa; un’eventuale
-sospensione esplicita appartiene a #46. Non sospendere automaticamente per ridurre i consumi.
+sospensione esplicita apparteneva a #46. Le regole automatiche operative sono descritte sotto.
 
 Alla rimozione: chiudere notifiche e popup del servizio, fermare soltanto worker di cui non
 restano peer proprietari, chiudere webContents, eliminare riferimenti e stato UI. Alla chiusura
@@ -151,3 +151,31 @@ conteggi per conservare account duplicati e reimport idempotente. Registro e pre
 salvati nella stessa transazione SQLite. Nessun permesso viene importato; condividere un
 workspace esistente può riutilizzarne gli account, come spiegato nell'anteprima.
 L'export legacy per downgrade omette le nuove preferenze di split e mute.
+
+## Ibernazione automatica
+
+La pagina del singolo servizio configura inattività e condizioni avanzate con ambito fisso:
+le altre regole restano invariate. Il menu nativo espone Iberna/Riprendi e il collegamento
+alla configurazione; la barra segnala la pausa senza badge sui servizi attivi.
+
+Le preferenze includono regole validate (massimo 20, fino a 6 condizioni ciascuna), ambito
+servizio/workspace/tutti e combinazione tutte/una. La regola dei workspace nascosti è attiva
+anche migrando profili precedenti e ha precedenza su visibilità ed eccezioni personalizzate.
+Le altre regole proteggono i servizi visualizzati, anche affiancati; per default proteggono
+audio, download e richieste/consensi media. Quest'ultima protezione è conservativa: non legge
+contenuti o stato interno delle chiamate. La sospensione manuale rimane indipendente.
+
+Il planner usa metadati in memoria e un singolo timer alla prossima scadenza di inattività o
+fascia oraria, senza polling o debugger permanente. Le fasce usano orario locale, giorno
+iniziale per quelle notturne ed estremo finale escluso. Focus/ripresa/policy ricalcolano le
+scadenze. I servizi non ancora aperti non vengono avviati per valutare le regole.
+
+Il teardown viene serializzato per Session, mantenendo parallele le sessioni indipendenti:
+chiusure concorrenti di peer non devono lasciare worker orfani. La ripresa e il caricamento
+attendono il teardown della sessione prima di avviare altri worker. Cookie e storage non
+vengono cancellati. Gli eventi di lifecycle hanno revisioni monotone: il renderer conserva
+lo stato più recente anche se una precedente risposta IPC arriva dopo l'evento. Questi eventi
+non cambiano pagina né scartano bozze delle impostazioni.
+
+Le regole persistono nel profilo locale; l'export portabile attuale non le trasferisce e
+l'export legacy le omette. Un riavvio rimuove le sospensioni manuali e rivaluta le regole.

@@ -1,14 +1,15 @@
 /** Only local shell identifiers can request one of these bounded native menus. */
-export function contextMenuItems(data, input, language, loadedIds = [], hiddenIds = []) {
+export function contextMenuItems(data, input, language, loadedIds = [], hiddenIds = [], suspendedIds = []) {
   if (!input || typeof input !== 'object' || !['service', 'workspace', 'global'].includes(input.kind) ||
       typeof input.id !== 'string' || input.id.length > 128) throw new Error('Invalid context menu');
   const it = language === 'it';
   const item = (action, en, italian, enabled = true) => ({ action, label: it ? italian : en, enabled });
   if (input.kind === 'service') {
     if (!data.apps.some(service => service.id === input.id)) throw new Error('Unknown service');
-    return [item('open', 'Open application', 'Apri applicazione'), item('edit', 'Edit application', 'Modifica applicazione'),
+    return [item('open', 'Open application', 'Apri applicazione'),
+      suspendedIds.includes(input.id) ? item('resume', 'Resume', 'Riprendi') : item('suspend', 'Hibernate', 'Iberna'), item('edit', 'Edit application', 'Modifica applicazione'),
       item('reload', 'Reload', 'Ricarica', loadedIds.includes(input.id)), item('browser', 'Open in browser', 'Apri nel browser'),
-      item('controls', 'Service controls', 'Controlli del servizio'), item('remove', 'Remove application…', 'Rimuovi applicazione…')];
+      item('hibernation', 'Service hibernation', 'Ibernazione del servizio'), item('controls', 'Service controls', 'Controlli del servizio'), item('remove', 'Remove application…', 'Rimuovi applicazione…')];
   }
   if (input.kind === 'global') {
     if (input.id !== 'global') throw new Error('Invalid context menu');

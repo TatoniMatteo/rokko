@@ -11,6 +11,8 @@ organizza lavoro e vita personale e mantieni il controllo dei tuoi dati.
 
 **Linux first · Local first · GPL-3.0-or-later**
 
+[Guida utente](.github/GUIDA-UTENTE.md)
+
 </div>
 
 ---

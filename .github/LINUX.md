@@ -24,7 +24,8 @@ Per tornare a una versione precedente usare l'export legacy in Impostazioni prim
 Un profilo corrotto offre recupero con archivio dei file precedenti; non cancellare directory
 Chromium per risolvere un problema di configurazione.
 
-La sospensione è esplicita: ferma il servizio e le sue notifiche fino alla ripresa o al riavvio.
+La sospensione manuale ferma il servizio e le sue notifiche fino alla ripresa o al riavvio.
+Le regole automatiche sono configurabili; di default i workspace nascosti vengono ibernati.
 Pulire la cache HTTP conserva login e storage; una sessione condivisa interessa più servizi.
 La diagnostica esportabile contiene eventi predefiniti e conteggi, non nomi, URL o contenuti.
 Nessuna telemetria viene inviata automaticamente.

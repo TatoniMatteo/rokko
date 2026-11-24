@@ -8,11 +8,12 @@ import { WorkspaceMark } from '../components/Dock';
 import { useI18n } from '../preferences/i18n';
 
 export function ManagementPage({ mode, data, preferences, initialWorkspace, busy, onOpen, onEditApp,
-  onEditWorkspace, onVisibility, onCatalog, onNewWorkspace, onContext }: {
+  onEditWorkspace, onVisibility, onCatalog, onNewWorkspace, onContext, onMode }: {
   onContext: (input: ContextMenuRequest) => void; mode: 'services' | 'workspaces'; data: AppData; preferences: Preferences; initialWorkspace?: string;
   busy: boolean; onOpen: (app: WebApp) => void; onEditApp: (app: WebApp) => void;
   onEditWorkspace: (workspace: Workspace) => void; onVisibility: (workspace: Workspace) => void;
   onCatalog: () => void; onNewWorkspace: () => void;
+  onMode: (mode: 'services' | 'workspaces') => void;
 }) {
   const t = useI18n();
   const [query, setQuery] = useState('');
@@ -23,11 +24,17 @@ export function ManagementPage({ mode, data, preferences, initialWorkspace, busy
     matches(a.name + ' ' + a.url + ' ' + workspaceName(a.workspaceId)));
   const workspaces = data.workspaces.filter(w => matches(w.name));
   return <div className="settings-page management-page"><div className="page-heading"><div>
-    <h1>{t(mode === 'services' ? 'Configured services' : 'All workspaces')}</h1>
+    <h1>{t('Organize')}</h1>
     <p>{t(mode === 'services' ? 'Manage every service, including hidden workspaces and global apps.' : 'Manage workspace names, accounts and visibility in one place.')}</p>
   </div></div><div className="page-actions dashboard-actions">
     <Button className="primary" onClick={mode === 'services' ? onCatalog : onNewWorkspace}><Icon name="plus"/>
       {t(mode === 'services' ? 'Add application' : 'New workspace')}</Button></div>
+    <nav className="management-tabs" aria-label={t('Organize')}>
+      <button type="button" aria-current={mode === 'services' ? 'page' : undefined}
+        onClick={() => onMode('services')}>{t('Services')}</button>
+      <button type="button" aria-current={mode === 'workspaces' ? 'page' : undefined}
+        onClick={() => onMode('workspaces')}>{t('Workspaces')}</button>
+    </nav>
     <section className="settings-card"><div className="management-filters"><div>
       <TextField label={t('Search')} id="management-search" type="search" value={query}
         onChange={e => setQuery(e.target.value)} placeholder={t('Search by name…')}/></div>

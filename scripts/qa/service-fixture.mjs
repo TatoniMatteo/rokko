@@ -12,7 +12,7 @@ export async function eventually(check, label, timeout = 10000) {
 }
 
 /** Controlled HTTPS pages, fulfilled before networking. No account/provider data is used. */
-export async function serviceFixture(client) {
+export async function serviceFixture(client, {intercept = true} = {}) {
   const sessions = new Map();
   const errors = [];
   let closed = false;
@@ -25,8 +25,7 @@ export async function serviceFixture(client) {
       return;
     }
     sessions.set(targetInfo.targetId, sessionId);
-    void client
-      .send('Fetch.enable', { patterns: [{ urlPattern: 'https://*.rokko.test/*' }] }, sessionId)
+    void (intercept ? client.send('Fetch.enable', { patterns: [{ urlPattern: 'https://*.rokko.test/*' }] }, sessionId) : Promise.resolve())
       .then(() => client.send('Runtime.runIfWaitingForDebugger', {}, sessionId))
       .catch(failed);
   });

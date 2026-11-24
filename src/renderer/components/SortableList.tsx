@@ -42,7 +42,7 @@ export function SortableList({ ids, render, onMove, label = id => id, onContext,
         if (from && ids.includes(from)) void move(from, id, event.clientY > rect.top + rect.height / 2);
       }}>
       <button ref={node => { if (node) handles.current.set(id, node); else handles.current.delete(id); }} className="drag-handle" type="button" aria-disabled={locked}
-        title={t('Drag to reorder. Keyboard: Space to pick up, arrows to move, Space to finish.')}
+        data-tooltip={t('Drag to reorder. Keyboard: Space to pick up, arrows to move, Space to finish.')}
         aria-label={t('Reorder {name}', { name: label(id) })} aria-pressed={picked === id}
         aria-describedby={instructions} onClick={() => {
           if (locked) return;

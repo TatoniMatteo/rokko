@@ -1,11 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { RokkoAPI, AppSnapshot, AppLoadState } from '../shared/contracts/model';
+import type { RokkoAPI, AppSnapshot, AppLoadState, ExternalLinkRequest } from '../shared/contracts/model';
 
 const iconListeners = new Set<(url: string, icon: string) => void>();
 const receiveIcon = (_event: Electron.IpcRendererEvent, url: string, icon: string): void => {
   for (const listener of iconListeners) listener(url, icon);
 };
 const api: RokkoAPI = {
+  onLifecycle: callback => {
+    const listener=(_event:Electron.IpcRendererEvent,state:import('../shared/contracts/model').ServiceLifecycle)=>callback(state);
+    ipcRenderer.on('rokko:lifecycle-changed',listener);
+    return ()=>{ipcRenderer.removeListener('rokko:lifecycle-changed',listener);};
+  },
   setSplit: (id,ratio) => ipcRenderer.invoke('rokko:split',id,ratio),
   previewSplitRatio: ratio => ipcRenderer.send('rokko:split-ratio',ratio),
   controlService: (id,action) => ipcRenderer.invoke('rokko:service-control',id,action),
@@ -17,6 +22,12 @@ const api: RokkoAPI = {
     ipcRenderer.on('rokko:quick-switch', listener);
     return () => {ipcRenderer.removeListener('rokko:quick-switch', listener);};
   },
+  onExternalLinkRequests: callback => {
+    const listener = (_event: Electron.IpcRendererEvent, requests: ExternalLinkRequest[]) => callback(requests);
+    ipcRenderer.on('rokko:external-link-requests', listener);
+    return () => { ipcRenderer.removeListener('rokko:external-link-requests', listener); };
+  },
+  resolveExternalLinkRequest: (id, action) => ipcRenderer.invoke('rokko:external-link-response', id, action),
   focusService: () => ipcRenderer.invoke('rokko:focus-service'),
   respondPermission: (id,allow,source) => ipcRenderer.invoke('rokko:permission-response',id,allow,source),
   revokePermissions: id => ipcRenderer.invoke('rokko:permission-revoke',id),
@@ -28,6 +39,7 @@ const api: RokkoAPI = {
   suspendService: id => ipcRenderer.invoke('rokko:suspend-service', id),
   resumeService: id => ipcRenderer.invoke('rokko:resume-service', id),
   getDownloads: () => ipcRenderer.invoke('rokko:downloads'),
+  getResourceUsage: () => ipcRenderer.invoke('rokko:resource-usage'),
   cancelDownload: id => ipcRenderer.invoke('rokko:cancel-download',id),
   onDownloads: callback => {
     const listener = (_event: Electron.IpcRendererEvent, downloads: import('../shared/contracts/model').DownloadInfo[]) => callback(downloads);

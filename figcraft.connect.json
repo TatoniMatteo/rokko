@@ -1,0 +1,26 @@
+{
+  "links": [
+    {
+      "component": "B01 / Pulsanti",
+      "importPath": "../components/ui",
+      "language": "react",
+      "name": "Button",
+      "template": "<Button>{Etichetta}</Button>"
+    },
+    {
+      "component": "B03 / Campi di testo",
+      "importPath": "../components/ui",
+      "language": "react",
+      "name": "TextField",
+      "template": "<TextField label=\"Indirizzo del sito\" />"
+    },
+    {
+      "component": "UI / Card",
+      "importPath": "../components/ui",
+      "language": "react",
+      "name": "Card",
+      "template": "<Card>…</Card>"
+    }
+  ],
+  "version": 1
+}

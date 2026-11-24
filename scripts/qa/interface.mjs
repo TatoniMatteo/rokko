@@ -186,17 +186,15 @@ try {
   await fixture.ready('https://interface.rokko.test/second');
   const second = (await ui.state()).activeAppId;
   await ui.activate('Home');
-  await ui.activate('Reorder Ricerca');
-  await ui.key('ArrowDown');
+  await ui.focus(`[data-app-id="${first}"]`);
+  await ui.key('ArrowRight');
   await eventually(
-    async () =>
-      (await ui.state()).data.apps.findIndex((a) => a.id === first) >
-      (await ui.state()).data.apps.findIndex((a) => a.id === second),
-    'keyboard reorder',
+    () => ui.run(`document.activeElement?.dataset.appId === ${JSON.stringify(second)}`),
+    'dock keyboard navigation',
   );
-  await ui.key(' ');
-  result.keyboardReorder = true;
-  await ui.activate('All workspaces');
+  result.keyboardDockNavigation = true;
+  await ui.activate('Organize');
+  await ui.activate('Workspaces');
   await ui.activate('Edit workspace Ricerca e progettazione');
   await ui.fill('#workspace-name', 'Research');
   await ui.activate('Save workspace');
@@ -211,7 +209,7 @@ try {
   await eventually(async () => (await ui.state()).data.workspaces.length === 1, 'remove workspace');
   assert.ok((await ui.state()).data.apps.every((a) => a.workspaceId === 'personal'));
   await ui.activate('Home');
-  await ui.activate('Configured services');
+  await ui.activate('Organize');
   await ui.activate('Edit Second service');
   await ui.activate('Remove application');
   await ui.activate('Confirm removal');
@@ -223,6 +221,7 @@ try {
   assert.deepEqual((await ui.state()).preferences, expected);
   assert.equal((await ui.state()).browserLanguage, 'en');
   await ui.activate('Ricerca');
+  await ui.activate('Resume service');
   const remote = await fixture.ready('https://interface.rokko.test/first');
   assert.ok((await fixture.evaluate(remote.session, 'navigator.language')).startsWith('en'));
   result.serviceLanguageAfterRestart = true;
@@ -253,10 +252,20 @@ try {
       mobile: false,
     });
     await ui.focus('.dock [data-app-id]:last-child');
-    const metrics = await ui.run(
-      `(()=>{const g=document.querySelector('.dock-groups'),r=document.activeElement.getBoundingClientRect(),v=['left','right'].includes('${dock}'),b=g.getBoundingClientRect();return {overflow:v?g.scrollWidth-g.clientWidth:g.scrollHeight-g.clientHeight,visible:v?r.top>=b.top&&r.bottom<=b.bottom+1:r.left>=b.left&&r.right<=b.right+1}})()`,
+    await eventually(
+      () =>
+        ui.run(
+          `Array.from(document.querySelectorAll('.dock [data-dock-item]')).every(item => item.getAnimations().every(animation => animation.playState !== 'running'))`,
+        ),
+      'dock layout animation',
     );
-    assert.ok(metrics.overflow <= 1 && metrics.visible, JSON.stringify({ dock, ...metrics }));
+    const metrics = await ui.run(
+      `(()=>{const g=document.querySelector('.dock-groups'),v=['left','right'].includes('${dock}');return {wrongAxis:v?g.scrollWidth-g.clientWidth:g.scrollHeight-g.clientHeight,scrollable:v?g.scrollHeight>g.clientHeight:g.scrollWidth>g.clientWidth,focused:document.activeElement.matches('.dock [data-app-id]:last-child')}})()`,
+    );
+    assert.ok(
+      metrics.wrongAxis <= 1 && metrics.scrollable && metrics.focused,
+      JSON.stringify({ dock, ...metrics }),
+    );
     await ui.key(['left', 'right'].includes(dock) ? 'ArrowUp' : 'ArrowLeft');
     assert.ok(await ui.run('document.activeElement.closest(".dock") !== null'));
   }

@@ -24,6 +24,7 @@
     "smoke:linux": "node scripts/release/smoke-linux.mjs",
     "smoke:prepare": "node scripts/release/prepare-smoke.mjs",
     "design:sync": "node scripts/design/figcraft.mjs",
+    "design:code": "node scripts/design/codegen.mjs",
     "design:watch": "node scripts/design/figcraft.mjs --watch",
     "lint": "oxlint --deny-warnings src scripts tests build electron.vite.config.ts",
     "qa:resources": "node scripts/qa/resources.mjs",
@@ -32,7 +33,8 @@
     "qa:connections": "node scripts/qa/connections.mjs --app scripts/qa/profile-entry.cjs",
     "qa:reliability": "node scripts/qa/reliability.mjs --app scripts/qa/reliability-entry.cjs",
     "qa:productivity": "node scripts/qa/productivity.mjs --app scripts/qa/reliability-entry.cjs",
-    "supply-chain": "node scripts/release/supply-chain.mjs"
+    "supply-chain": "node scripts/release/supply-chain.mjs",
+    "qa:hibernation": "node scripts/qa/hibernation.mjs --app scripts/qa/profile-entry.cjs"
   },
   "dependencies": {
     "react": "19.3.1",

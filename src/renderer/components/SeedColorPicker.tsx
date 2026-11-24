@@ -33,7 +33,7 @@ export function SeedColorPicker({
             key={preset.value}
             style={{ '--swatch-color': preset.value } as CSSProperties}
             aria-label={t(preset.name)}
-            title={t(preset.name)}
+            data-tooltip={t(preset.name)}
             aria-pressed={value.toLowerCase() === preset.value}
             onClick={() => onChange(preset.value)}
           />
@@ -41,7 +41,7 @@ export function SeedColorPicker({
         <label
           className="seed-swatch seed-custom"
           data-selected={custom}
-          title={t('Choose a custom color')}
+          data-tooltip={t('Choose a custom color')}
           style={{ '--swatch-color': value } as CSSProperties}
         >
           <Icon name="plus" size={16} />
