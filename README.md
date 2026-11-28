@@ -6,60 +6,65 @@
 
 ### Le tue applicazioni web. Uno spazio tutto tuo.
 
-Un workspace desktop open source per Linux: riunisci servizi e account,
-organizza lavoro e vita personale e mantieni il controllo dei tuoi dati.
+Un workspace desktop open source per Linux, con servizi web, account separati e workspace personali e di lavoro.
 
-**Linux first · Local first · GPL-3.0-or-later**
+**Sviluppato con AI · Linux first · Local first · GPL-3.0-or-later**
 
-[Guida utente](.github/GUIDA-UTENTE.md)
+[Scarica Rokko](https://github.com/TatoniMatteo/rokko/releases) · [Guida utente](.github/GUIDA-UTENTE.md) · [English guide](.github/USER-GUIDE.md) · [Contribuisci](.github/CONTRIBUTING.md)
 
 </div>
 
 ---
 
-Rokko porta le applicazioni web in una finestra dedicata, con workspace per organizzarle
-e sessioni separate per usare più account dello stesso servizio.
-Nessun account Rokko richiesto, nessuna telemetria e nessun backend del progetto.
+**Rokko è un progetto sviluppato con l’AI.** Nasce da un lavoro guidato dal suo autore,
+usando agenti AI per scrivere codice, esplorare soluzioni e verificare le modifiche.
+Le scelte sul prodotto e l’accettazione del risultato restano al suo autore.
 
-| Uno spazio ordinato | Account separati | Dati sul tuo PC |
+Riunisci le tue applicazioni web in una finestra dedicata. Nessun account Rokko,
+nessuna telemetria e nessun backend del progetto: la configurazione resta sul tuo PC.
+
+| Organizza il tuo spazio | Usa più account | Lavora con continuità |
 | :--- | :--- | :--- |
-| Raggruppa i servizi in workspace personali e di lavoro. | Scegli sessioni indipendenti o condividi il login tra i servizi di un workspace. | La configurazione resta locale; ogni servizio mantiene le proprie normali connessioni. |
+| Workspace, servizi sempre visibili e barra sui quattro lati. | Sessioni indipendenti o condivise esplicitamente nel workspace. | Ricerca rapida, due servizi affiancati e ripristino della configurazione. |
 
-### Già nell'alpha
+<img src="assets/screenshots/user-guide.png" alt="Guida integrata di Rokko: indice degli argomenti, ricerca e articolo" width="1100">
 
-- Catalogo a griglia con otto servizi e aggiunta libera tramite URL HTTPS.
-- Servizi globali sempre visibili e sessioni condivise del workspace, con gestione account dalle sue impostazioni.
-- Pagine per configurare app e workspace: modifica, spostamento, riordino e trasferimento dei servizi.
-- Favicon automatiche dove disponibili e icone personalizzate salvate localmente.
-- Navigazione avanti/indietro, stato di caricamento e recupero dagli errori di connessione.
-- Importazione dei servizi Rambox tramite MCP locale, con anteprima e scelta dei workspace di destinazione.
-- Salvataggio locale della configurazione e sessioni persistenti separate.
-- Notifiche desktop autorizzabili per servizio, con avvio in background e pulsante di prova.
-- Scorciatoie da tastiera per cambiare servizio e workspace, con riepilogo nell’interfaccia.
-- Barra compatta sui quattro lati e dashboard per organizzare servizi e workspace.
-- Tema chiaro, scuro o di sistema, colori personalizzabili e interfaccia in italiano e inglese.
+*La guida integrata nelle build di sviluppo, disponibile anche offline.*
 
-### La direzione
+### Cosa puoi fare
 
-**Leggero, senza rinunciare alla reattività.** Consumi contenuti e notifiche tempestive
-sono obiettivi centrali, da dimostrare con misurazioni.
-Sono in programma pacchetti Linux pronti da installare.
+- Scegliere fra 100 servizi del catalogo o aggiungere un URL HTTPS personalizzato.
+- Gestire servizi, account e workspace; importare servizi da Rambox e trasferire configurazioni fra installazioni.
+- Personalizzare tema, colore, lingua italiana/inglese e icone dei servizi.
+- Controllare consumi, ibernazione, download e permessi dalle impostazioni.
+- Consultare la guida nel repository; le build dai sorgenti includono anche la guida offline con ricerca.
 
-Rokko è ancora un'**alpha sperimentale**: i pacchetti di distribuzione non sono ancora pronti.
-L’importazione Rambox trasferisce i servizi, senza ricostruire i workspace originali o le sessioni.
-Il supporto alle notifiche è ancora parziale; accesso e notifiche dei singoli servizi restano da verificare.
+### Installa su Linux
 
-### Provalo dai sorgenti
+Dalle [release](https://github.com/TatoniMatteo/rokko/releases) scegli il **DEB** della tua architettura
+per Ubuntu/Debian compatibili. Il runtime è incluso; non devi installare Node o pnpm.
 
-Con Node.js 22.12+ e Corepack disponibili, dalla cartella del progetto:
+```sh
+sudo apt install ./nome-del-pacchetto.deb
+```
 
-```bash
+Per aggiornare, chiudi Rokko e installa il nuovo DEB allo stesso modo. AppImage è disponibile
+come alternativa. [Installazione, aggiornamento e ambienti verificati](.github/LINUX.md).
+
+Rokko è un’**alpha sperimentale**. I pacchetti x64 e ARM64 sono costruiti e provati in CI;
+questo non garantisce ogni desktop o dispositivo. Accesso e notifiche dipendono anche dai
+singoli provider; il supporto Web Push resta parziale.
+
+### Sviluppa e contribuisci
+
+Usa la versione Node indicata in [.node-version](.node-version) e Corepack:
+
+```sh
 corepack pnpm install --frozen-lockfile
 corepack pnpm dev
 ```
 
-Su Ubuntu il primo avvio può richiedere la password amministrativa per configurare
-il profilo AppArmor dedicato a Electron. Dopo la configurazione basta il comando di avvio.
+[Ambiente e contributi](.github/CONTRIBUTING.md) · [Architettura](.github/ARCHITECTURE.md) · [Rilasci](.github/RELEASE.md)
 
 ---
 

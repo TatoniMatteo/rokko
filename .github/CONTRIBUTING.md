@@ -11,6 +11,28 @@ Apri una issue prima di un intervento sostanziale e mantieni le modifiche concen
 Le modifiche passano attraverso pull request e controlli automatici. Mantieni sandbox, isolamento delle sessioni e convalida degli IPC.
 Dati personali, credenziali, profili di prova, `.codex` e materiali intermedi restano locali.
 
+## Sviluppo con AI e documentazione
+
+Rokko è sviluppato con agenti AI sotto la direzione del suo autore. I contributi assistiti
+da AI seguono lo stesso flusso: problema concreto, modifica circoscritta, revisione e prove.
+
+Prima di **ogni PR**, confronta il comportamento del codice con README, guide IT/EN,
+istruzioni Linux e documenti tecnici pertinenti. Aggiorna comandi, nomi dei controlli,
+valori predefiniti, limiti e procedure nello stesso intervento. Rileggi anche gli esempi.
+La guida nell’app importa direttamente `.github/GUIDA-UTENTE.md` e `.github/USER-GUIDE.md`:
+non creare copie separate. Le sezioni `##` sono gli argomenti; i titoli `###` formano
+l’indice della pagina. Sono supportati paragrafi, elenchi, grassetto, codice inline e tabelle.
+Usa gli stessi argomenti, nello stesso ordine, in entrambe le lingue.
+
+Nel corpo della PR indica i documenti verificati, i comportamenti confrontati e le modifiche
+apportate; se non occorrono aggiornamenti, spiega concretamente perché. Una checklist
+spuntata o un test automatico, da soli, non dimostrano che la documentazione corrisponde al codice.
+Non aprire la PR finché la verifica non è completata.
+
+La cronologia pubblica usa squash: una PR deve raccontare un cambiamento riconoscibile,
+con titolo finale coerente e riferimenti alla issue pertinente. Non accumulare lavori
+indipendenti sotto una issue generica.
+
 ## Ambiente di sviluppo
 
 Per sviluppo e CI usare la versione esatta di Node in `.node-version` e pnpm in
@@ -73,9 +95,10 @@ le verifiche; non copiare o eliminare partizioni Chromium e non fare downgrade c
 |---|---|---|
 | Ubuntu 26.04.1, GNOME/Wayland | Riferimento desktop; avvio e QA shell/viste verificati | Account autenticati, multi-monitor e pacchetti richiedono prove dedicate |
 | Stesso host, X11 virtuale Xvfb | QA shell/viste e scaling al 125% verificati | Non certifica una sessione Xorg fisica, GPU o tray |
-| Ubuntu 24.04, GitHub Actions | Installazione frozen, typecheck, unit test, build e audit | Runner headless: non è una prova del desktop |
+| Ubuntu 24.04, GitHub Actions | Installazione frozen, check, audit, prove UI su Xvfb e installazione DEB | Runner headless: non è una prova del desktop fisico |
 | Ubuntu 24.04 desktop, Xorg fisico | Candidati per la prossima matrice | Non ancora supporto certificato |
-| Altre distro, ARM64 e altri OS | Fuori dalla baseline corrente | Solo dopo valutazione e prove esplicite |
+| Ubuntu 24.04 ARM64, CI/Xvfb | Packaging nativo, avvio e installazione DEB verificati nella alpha.5 | Non certifica hardware o desktop ARM fisici |
+| Altre distro e altri OS | Fuori dalla baseline corrente | Solo dopo valutazione e prove esplicite |
 
 Una prova desktop registra commit, architettura, distro, ambiente grafico, scaling e runtime.
 Verificare avvio sandboxato, resize e quattro posizioni barra, menu/focus, due sessioni,

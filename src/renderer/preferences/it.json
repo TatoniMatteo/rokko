@@ -486,5 +486,15 @@
   "Advanced rules": "Regole avanzate",
   "Set inactivity and advanced rules for this service.": "Configura inattività e regole avanzate per questo servizio.",
   "Configure hibernation": "Configura ibernazione",
-  "Hibernate": "Iberna"
+  "Hibernate": "Iberna",
+  "User guide": "Guida utente",
+  "Documentation": "Documentazione",
+  "Practical help, available offline.": "Risposte pratiche, disponibili anche offline.",
+  "Back to settings": "Torna alle impostazioni",
+  "Search the documentation": "Cerca nella documentazione",
+  "Clear search": "Cancella ricerca",
+  "Guide topics": "Argomenti della guida",
+  "{count} topics found": "{count} argomenti trovati",
+  "Try another word, such as workspace, account or notifications.": "Prova un’altra parola, come workspace, account o notifiche.",
+  "On this page": "In questa pagina"
 }

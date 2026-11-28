@@ -14,7 +14,7 @@ export function QuickSwitchPage({
   data: AppData;
   onService: (service: WebApp) => void;
   onWorkspace: (workspace: Workspace) => void;
-  onCommand: (command: 'dashboard' | 'settings' | 'catalog' | 'downloads') => void;
+  onCommand: (command: 'dashboard' | 'settings' | 'catalog' | 'downloads' | 'documentation') => void;
   onClose: () => void;
 }) {
   const t = useI18n();
@@ -37,7 +37,7 @@ export function QuickSwitchPage({
       icon: null,
       run: () => onWorkspace(workspace),
     })),
-    ...(['dashboard', 'settings', 'catalog', 'downloads'] as const).map((command) => ({
+    ...(['dashboard', 'settings', 'catalog', 'downloads', 'documentation'] as const).map((command) => ({
       key: command,
       name: t(
         {
@@ -45,6 +45,7 @@ export function QuickSwitchPage({
           settings: 'Settings',
           catalog: 'Add an application',
           downloads: 'Downloads',
+          documentation: 'User guide',
         }[command],
       ),
       detail: t('Command'),
