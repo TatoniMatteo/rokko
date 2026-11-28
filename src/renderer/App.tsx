@@ -1,3 +1,4 @@
+import { DocumentationPage } from './pages/DocumentationPage';
 import { mergeLifecycleSnapshot } from '../shared/apps/lifecycle.mjs';
 import { HibernationPage } from './pages/HibernationPage';
 import { SplitSurface, SplitToolbar } from './components/SplitSurface';
@@ -55,6 +56,7 @@ const initial: AppSnapshot = {
 };
 
 type Page =
+  | 'documentation'
   | 'hibernation'
   | 'configuration'
   | 'quick'
@@ -636,6 +638,7 @@ export function App() {
                 onPermissions={() => navigate('permissions')}
                 onDownloads={() => navigate('downloads')}
                 onResources={() => navigate('resources')}
+                onDocumentation={() => navigate('documentation')}
                 onShortcuts={() => navigate('shortcuts')}
                 onConfiguration={() => navigate('configuration')}
                 onImport={() => navigate('import')}
@@ -722,6 +725,7 @@ export function App() {
                 workspaces={snapshot.data.workspaces}
               />
             )}
+            {page === 'documentation' && <DocumentationPage onBack={() => navigate('settings')} />}
             {page === 'shortcuts' && <KeyboardShortcutsPage />}
             {page === 'import' && (
               <RamboxImportPage data={snapshot.data} onImported={setSnapshot} />

@@ -18,6 +18,16 @@ Seguire il messaggio del launcher o le istruzioni del pacchetto. Non usare `--no
 e non disattivare la policy globale del sistema. Le AppImage estratte sono prove distinte
 dall'integrazione completa con il desktop.
 
+## Aggiornamenti e launcher
+
+Il DEB è il percorso consigliato sulle distribuzioni compatibili. Chiudi Rokko e installa
+il nuovo DEB con lo stesso comando usato per la prima installazione. Configurazione e
+sessioni risiedono nel profilo utente, separatamente dai file del pacchetto.
+Non è presente un aggiornamento automatico. Evita di mantenere launcher di una precedente
+AppImage accanto al DEB: potresti aprire una versione diversa da quella appena installata.
+`pnpm update:installed` è uno strumento per sviluppatori: ricostruisce una AppImage dal
+checkout locale, non scarica la release pubblicata.
+
 ## Dati e recupero
 
 Impostazioni → Importa ed esporta trasferisce configurazione, workspace e icone, senza
@@ -48,4 +58,6 @@ locale di prova. Per un problema usare i template issue; per dati sensibili usar
 | Ubuntu 24.04 x64, CI/Xvfb | Build nativa, checksum/licenze, launcher estratto e riavvio sandboxato | Ambiente headless, non desktop fisico |
 | Ubuntu 24.04 ARM64, CI/Xvfb | Build nativa, architettura ELF, checksum/licenze e avvio sandboxato estratto | Non certifica FUSE o hardware ARM specifico |
 
-I candidati sono unsigned. Le prove non sbloccano da sole i gate DEB, asset e notifiche.
+I pacchetti sono unsigned. La release alpha.5 ha superato anche installazione, avvio e
+rimozione DEB su CI Ubuntu 24.04 x64/ARM64; il DEB x64 è stato installato e avviato sul
+desktop di riferimento. Le prove non certificano tutti i provider o ogni hardware.

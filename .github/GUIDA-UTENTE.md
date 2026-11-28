@@ -14,6 +14,10 @@ Questa guida descrive le funzioni disponibili nell’alpha attuale, con i nomi d
 Puoi aggiungere più volte lo stesso servizio per usare account diversi. Per tenerli separati,
 scegli sessioni indipendenti o workspace diversi.
 
+Puoi consultare questa guida anche offline da **Impostazioni → Guida utente**.
+La ricerca della guida trova parole nei titoli e nel testo completo degli argomenti.
+Puoi aprirla anche cercando **Guida utente** nella Ricerca rapida.
+
 ## Orientati nella finestra
 
 La barra di navigazione contiene il logo, **Home**, **Impostazioni**, **Ricerca rapida** e le
@@ -132,6 +136,9 @@ persa. Per continuare a ricevere notifiche, il servizio deve restare attivo.
 
 ### Regole automatiche
 
+Di default i servizi sono idonei all’ibernazione all’avvio. Le opzioni di avvio per singolo
+servizio permettono di includerli o escluderli senza cambiare gli altri servizi.
+
 Apri **Impostazioni → Ibernazione dei servizi**. La regola **Mantieni ibernati i servizi dei
 workspace nascosti** è attiva di default e ha precedenza sulle altre regole. Mostrare nuovamente
 il workspace rimuove la sospensione automatica; i servizi prima avviati vengono riattivati.
@@ -156,7 +163,8 @@ una sola. Per esempio, puoi ibernare un workspace fuori orario soltanto se i suo
 sono anche inattivi da 30 minuti. Salva le modifiche per applicarle.
 
 Le regole personalizzate non ibernano i servizi che stai visualizzando, neppure in vista
-affiancata. Aprire un servizio ibernato automaticamente lo riattiva. Sono disponibili
+affiancata. Di default selezionare un servizio ibernato non lo riattiva: usa **Riprendi**, oppure abilita
+il risveglio alla selezione nelle impostazioni di ibernazione. Sono disponibili
 esclusioni per servizio e protezioni per audio, download e accesso ai dispositivi. La protezione
 dei dispositivi conserva attivi i servizi con richieste pendenti o permessi concessi: non
 controlla il contenuto delle chiamate. La regola dei workspace nascosti ha comunque precedenza.
@@ -224,6 +232,14 @@ Per problemi di configurazione, la schermata di recupero offre le opzioni dispon
 conserva un archivio dei file precedenti.
 
 Per installazione e limiti degli ambienti Linux consulta [Usare Rokko su Linux](LINUX.md).
+
+### Installazione e aggiornamento su Linux
+
+Scarica il DEB della tua architettura da GitHub Releases e installalo con
+`sudo apt install ./nome-del-pacchetto.deb`. Per aggiornarlo, chiudi Rokko e installa
+il nuovo DEB allo stesso modo. Il runtime è incluso: Node e pnpm servono solo agli sviluppatori.
+AppImage è un formato alternativo: scegli una sola installazione abituale per evitare
+launcher duplicati. Non è presente un aggiornamento automatico.
 
 ## Scorciatoie utili
 

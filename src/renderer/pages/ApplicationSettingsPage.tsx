@@ -19,6 +19,7 @@ export function ApplicationSettingsPage({
   onPermissions,
   onDownloads,
   onResources,
+  onDocumentation,
   onShortcuts,
   onImport,
   onConfiguration,
@@ -35,6 +36,7 @@ export function ApplicationSettingsPage({
   onPermissions: () => void;
   onDownloads: () => void;
   onResources: () => void;
+  onDocumentation: () => void;
   onShortcuts: () => void;
   onImport: () => void;
   onConfiguration: () => void;
@@ -169,6 +171,7 @@ export function ApplicationSettingsPage({
         )}
         <div className="settings-tools">
           {[
+            [t('User guide'), onDocumentation],
             [t('Service hibernation'), onHibernation],
             [t('Service permissions'), onPermissions],
             [t('Downloads'), onDownloads],
