@@ -448,7 +448,7 @@ export function App() {
         seed={preferences.seed}
         dark={preferences.theme === 'dark' || (preferences.theme === 'system' && systemDark)}
       />
-      <ThemedTooltip />
+      <ThemedTooltip overService={page === 'home' && snapshot.activeAppId !== null} />
       <div className={`app-shell dock-${preferences.dock}`}>
         <Dock
           data={snapshot.data}
