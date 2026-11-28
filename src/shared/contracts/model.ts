@@ -124,6 +124,7 @@ export interface RokkoAPI {
   testNotification(id: string): Promise<void>;
   getServiceIcon(url: string): Promise<string | null>;
   updateBounds(bounds: ViewBounds): void;
+  setDockTooltip(bounds: ViewBounds | null): void;
   setOverlayOpen(open: boolean): void;
   goBack(): Promise<void>;
   goForward(): Promise<void>;

@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { AppData, AppSnapshot, ContextMenuRequest } from '../../shared/contracts/model';
 import type { Preferences } from '../../shared/preferences/preferences.mjs';
 import { orderedCards } from '../../shared/preferences/preferences.mjs';
@@ -6,18 +7,21 @@ import { Icon } from './Icon';
 import { ServiceIcon } from './ServiceIcon';
 import logo from '../../../assets/brand/rokko-dark-icon.png';
 import { useI18n } from '../preferences/i18n';
-function reorderedIds(ids: string[], source: string, target: string, after: boolean) {
-  const result = ids.filter(id => id !== source);
-  const targetIndex = result.indexOf(target);
-  if (targetIndex < 0) return ids;
-  result.splice(targetIndex + (after ? 1 : 0), 0, source);
-  return result;
-}
 export function WorkspaceMark({ name, index = 0 }: { name: string | null; index?: number }) {
   return <span className="workspace-mark"
     style={{ '--workspace-hue': (index * 67 + 180) % 360 } as React.CSSProperties} aria-hidden="true">
     {name ? Array.from(name.trim())[0]?.toLocaleUpperCase() : <Icon name="globe" size={14}/>}</span>;
 }
+type DockItem = { kind: 'app' | 'workspace'; id: string };
+type DropTarget = DockItem & { after: boolean };
+
+function dockItem(element: HTMLElement): DockItem {
+  const key = element.dataset.dockItem!;
+  return key.startsWith('app:')
+    ? { kind: 'app', id: key.slice(4) }
+    : { kind: 'workspace', id: key.slice(10) };
+}
+
 export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onSettings, onSearch, onApp, onMoveApp, onMoveWorkspace, onContext, disabled }: {
   data: AppData; lifecycle: AppSnapshot; preferences: Preferences; activeId: string | null; page: string;
   onHome: () => void; onSettings: () => void; onSearch: () => void; onApp: (id: string) => void;
@@ -26,9 +30,14 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
   onContext: (input: ContextMenuRequest) => void; disabled: boolean;
 }) {
   const t = useI18n();
-  const drag = useRef<{ kind: 'app' | 'workspace'; id: string } | null>(null);
-  const [dragging, setDragging] = useState<{ kind: 'app' | 'workspace'; id: string } | null>(null);
-  const [drop, setDrop] = useState<{ kind: 'app' | 'workspace'; id: string; after: boolean } | null>(null);
+  const drag = useRef<{
+    item: DockItem; element: HTMLElement; pointerId: number; x: number; y: number; rect: DOMRect;
+  } | null>(null);
+  const ghost = useRef<HTMLDivElement>(null);
+  const ghostPosition = useRef({ left: 0, top: 0 });
+  const suppressClick = useRef(false);
+  const [dragging, setDragging] = useState<DockItem | null>(null);
+  const [drop, setDrop] = useState<DropTarget | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [fixedCollapsed, setFixedCollapsed] = useState(false);
   const previousPositions = useRef(new Map<string, DOMRect>());
@@ -63,97 +72,68 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
     previousPositions.current = nextPositions;
   });
   const vertical = preferences.dock === 'left' || preferences.dock === 'right';
-  const positionAfter = (event: DragEvent<HTMLElement>, id: string, kind: 'app' | 'workspace') => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const position = vertical ? event.clientY - rect.top : event.clientX - rect.left;
-    const length = vertical ? rect.height : rect.width;
-    const middle = length / 2;
-    const tolerance = length * 0.18;
-    if (
-      drop?.kind === kind &&
-      drop.id === id &&
-      position >= middle - tolerance &&
-      position <= middle + tolerance
-    )
-      return drop.after;
-    if (position < middle - tolerance) return false;
-    if (position > middle + tolerance) return true;
-    return position > middle;
-  };
-  function startDrag(event: DragEvent<HTMLElement>, item: { kind: 'app' | 'workspace'; id: string }) {
-    if (disabled) { event.preventDefault(); return; }
-    drag.current = item;
-    setDragging(item);
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', `${item.kind}:${item.id}`);
+  function startDrag(event: PointerEvent<HTMLDivElement>) {
+    if (!event.isPrimary || event.button !== 0) return;
+    suppressClick.current = false;
+    if (disabled || event.pointerType === 'touch' || !(event.target instanceof Element)) return;
+    const element = event.target.closest<HTMLElement>('[data-dock-item]');
+    if (!element) return;
+    drag.current = {
+      item: dockItem(element), element, pointerId: event.pointerId,
+      x: event.clientX, y: event.clientY, rect: element.getBoundingClientRect(),
+    };
   }
+
+  function findDrop(event: PointerEvent<HTMLDivElement>): DropTarget | null {
+    const source = drag.current;
+    const element = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-dock-item]');
+    if (!source || !element || !event.currentTarget.contains(element) || element === source.element) return null;
+    const item = dockItem(element);
+    if (item.kind !== source.item.kind) return null;
+    if (item.kind === 'app' && element.closest('.workspace-card') !== source.element.closest('.workspace-card')) {
+      return null;
+    }
+    const rect = element.getBoundingClientRect();
+    const after = vertical ? event.clientY > rect.top + rect.height / 2 : event.clientX > rect.left + rect.width / 2;
+    return { ...item, after };
+  }
+
+  function moveDrag(event: PointerEvent<HTMLDivElement>) {
+    const source = drag.current;
+    if (!source || source.pointerId !== event.pointerId || disabled) return;
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      if (Math.hypot(event.clientX - source.x, event.clientY - source.y) < 5) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      suppressClick.current = true;
+      setDragging(source.item);
+    }
+    const left = source.rect.left + (vertical ? 0 : event.clientX - source.x);
+    const top = source.rect.top + (vertical ? event.clientY - source.y : 0);
+    ghostPosition.current = { left, top };
+    if (ghost.current) {
+      ghost.current.style.left = `${left}px`;
+      ghost.current.style.top = `${top}px`;
+    }
+    const next = findDrop(event);
+    setDrop(previous => previous?.id === next?.id && previous?.after === next?.after ? previous : next);
+  }
+
   function finishDrag() {
     drag.current = null;
     setDragging(null);
     setDrop(null);
   }
-  function dragOver(event: DragEvent<HTMLElement>, id: string, kind: 'app' | 'workspace') {
+
+  function releaseDrag(event: PointerEvent<HTMLDivElement>) {
     const source = drag.current;
-    if (!source || disabled) return;
-    if (source.kind !== kind) {
-      event.dataTransfer.dropEffect = 'none';
-      setDrop(null);
-      return;
-    }
-    if (source.id === id) {
-      event.dataTransfer.dropEffect = 'none';
-      return;
-    }
-    if (kind === 'app') {
-      const sourceApp = data.apps.find(app => app.id === source.id);
-      const targetApp = data.apps.find(app => app.id === id);
-      if (!sourceApp || !targetApp || sourceApp.workspaceId !== targetApp.workspaceId) {
-        event.dataTransfer.dropEffect = 'none';
-        setDrop(null);
-        return;
-      }
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    const next = { kind, id, after: positionAfter(event, id, kind) };
-    setDrop(previous =>
-      previous?.kind === next.kind && previous.id === next.id && previous.after === next.after
-        ? previous
-        : next,
-    );
-  }
-  function dropOnApp(event: DragEvent<HTMLButtonElement>, id: string) {
-    const source = drag.current;
-    if (!source || disabled) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (source.kind !== 'app') {
-      finishDrag();
-      return;
-    }
-    const sourceApp = data.apps.find(app => app.id === source.id);
-    const targetApp = data.apps.find(app => app.id === id);
-    if (!sourceApp || !targetApp || sourceApp.workspaceId !== targetApp.workspaceId) {
-      finishDrag();
-      return;
-    }
-    const after = positionAfter(event, id, 'app');
+    if (!source || source.pointerId !== event.pointerId) return;
+    const target = !disabled && event.currentTarget.hasPointerCapture(event.pointerId) ? findDrop(event) : null;
     finishDrag();
-    if (source.id !== id) void onMoveApp(source.id, id, after);
+    if (!target) return;
+    const move = source.item.kind === 'app' ? onMoveApp : onMoveWorkspace;
+    void move(source.item.id, target.id, target.after);
   }
-  function dropOnWorkspace(event: DragEvent<HTMLButtonElement>, id: string) {
-    const source = drag.current;
-    if (!source || disabled) return;
-    if (source.kind !== 'workspace') {
-      event.preventDefault();
-      finishDrag();
-      return;
-    }
-    event.preventDefault();
-    const after = positionAfter(event, id, 'workspace');
-    finishDrag();
-    if (source.id !== id) void onMoveWorkspace(source.id, id, after);
-  }
+
   function dockKey(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const vertical = preferences.dock === 'left' || preferences.dock === 'right';
@@ -175,17 +155,39 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
     ]?.focus();
   }
 
-  const allCardIds = orderedCards(data, preferences);
-  const cardIds = drop?.kind === 'workspace' && dragging?.kind === 'workspace'
-    ? reorderedIds(allCardIds, dragging.id, drop.id, drop.after)
-    : allCardIds;
+  const cardIds = orderedCards(data, preferences);
+  const tooltip = (text: string) => dragging ? {} : { 'data-tooltip': text, 'data-tooltip-placement': 'dock' };
+  const draggedApp = dragging?.kind === 'app' ? data.apps.find(app => app.id === dragging.id) : undefined;
+  const draggedWorkspace = dragging?.kind === 'workspace'
+    ? data.workspaces.findIndex(workspace => workspace.id === dragging.id)
+    : -1;
   return <div className="dock" role="toolbar" aria-label={t('Services')}
     tabIndex={-1}
     aria-orientation={preferences.dock === 'left' || preferences.dock === 'right' ? 'vertical' : 'horizontal'}
-    onDragLeave={event => {
-      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDrop(null);
+    onPointerDown={startDrag}
+    onPointerMove={moveDrag}
+    onPointerUp={releaseDrag}
+    onPointerCancel={finishDrag}
+    onPointerLeave={event => {
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) finishDrag();
+    }}
+    onLostPointerCapture={finishDrag}
+    onKeyDownCapture={event => {
+      const pointerId = drag.current?.pointerId;
+      if (event.key !== 'Escape' || pointerId === undefined ||
+          !event.currentTarget.hasPointerCapture(pointerId)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      finishDrag();
+      event.currentTarget.releasePointerCapture(pointerId);
+    }}
+    onDragStart={event => event.preventDefault()}
+    onClickCapture={event => {
+      if (!suppressClick.current || event.detail === 0) return;
+      suppressClick.current = false;
+      event.stopPropagation();
     }}>
-    <div className="dock-brand" data-tooltip="Rokko" data-tooltip-placement="dock">
+    <div className="dock-brand" {...tooltip('Rokko')}>
       <img className="dock-logo" src={logo} alt="Rokko"/>
     </div>
     <div className="dock-groups">{cardIds.filter(id => !preferences.hiddenWorkspaces.includes(id)).map(id => {
@@ -194,11 +196,6 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
     if (id === 'global' && !apps.length) return null;
     const isCollapsed = collapsed.has(id);
     const workspaceName = workspace?.name ?? t('Always visible');
-    const appIds = drop?.kind === 'app' && dragging?.kind === 'app' &&
-      data.apps.find(app => app.id === dragging.id)?.workspaceId === (id === 'global' ? null : id)
-      ? reorderedIds(apps.map(app => app.id), dragging.id, drop.id, drop.after)
-      : apps.map(app => app.id);
-    const services = appIds.map(appId => apps.find(app => app.id === appId)!);
     return <div className={`dock-card workspace-card ${isCollapsed ? 'is-collapsed' : ''}`}
       role="group" aria-label={workspaceName} key={id}>
       <button data-dock-item={`workspace:${id}`} className={`workspace-trigger ${dragging?.kind === 'workspace' && dragging.id === id ? 'drag-ghost' : ''}`} onKeyDown={event => {
@@ -210,13 +207,9 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
         event.preventDefault();
         onContext({ kind: workspace ? 'workspace' : 'global', id });
       }} aria-expanded={!isCollapsed} aria-label={t(isCollapsed ? 'Expand {name}' : 'Collapse {name}', { name: workspaceName })}
-        draggable={!disabled} onDragStart={event => startDrag(event, { kind: 'workspace', id })}
-        onDragEnd={finishDrag}
-        onDragOver={event => dragOver(event, id, 'workspace')}
-        onDrop={event => dropOnWorkspace(event, id)}
         onFocus={event => event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' })}
-        data-tooltip={workspaceName}
-        data-tooltip-placement="dock"
+        {...tooltip(workspaceName)}
+        data-drop={drop?.kind === 'workspace' && drop.id === id ? (drop.after ? 'after' : 'before') : undefined}
         onClick={() => setCollapsed(previous => {
          const next = new Set(previous);
          if (next.has(id)) next.delete(id); else next.add(id);
@@ -227,10 +220,10 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
       <div
         className="dock-services"
         inert={isCollapsed}
-        style={{ '--dock-expanded-size': `${42 * services.length}px` } as React.CSSProperties}
+        style={{ '--dock-expanded-size': `${42 * apps.length}px` } as React.CSSProperties}
       >
       <div className="dock-services-inner">
-        {services.map((service) => {
+        {apps.map((service) => {
           const state = lifecycle.suspendedIds?.includes(service.id)
             ? 'suspended'
             : lifecycle.appStates?.[service.id]?.status === 'failed'
@@ -249,20 +242,12 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
               aria-label={notificationCount > 0
                 ? t('{name}, {count} notifications', { name: service.name, count: notificationCount })
                 : service.name}
-              data-tooltip-placement="dock"
+              {...tooltip(service.name)}
+              data-drop={drop?.kind === 'app' && drop.id === service.id ? (drop.after ? 'after' : 'before') : undefined}
               aria-current={service.id === activeId && page === 'home' ? 'page' : undefined}
-              draggable={!disabled}
               onFocus={(event) => {
                 event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
               }}
-              data-tooltip={service.name}
-              onDragStart={(event) => {
-                event.stopPropagation();
-                startDrag(event, { kind: 'app', id: service.id });
-              }}
-              onDragEnd={finishDrag}
-              onDragOver={(event) => dragOver(event, service.id, 'app')}
-              onDrop={(event) => dropOnApp(event, service.id)}
               onKeyDown={(event) => {
                 dockKey(event);
                 if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
@@ -298,8 +283,7 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
     <button className="fixed-collapse-toggle" aria-expanded={!fixedCollapsed}
       aria-controls="dock-actions"
       aria-label={t('Quick actions')}
-      data-tooltip={t('Quick actions')}
-      data-tooltip-placement="dock"
+      {...tooltip(t('Quick actions'))}
       onClick={() => setFixedCollapsed(value => !value)}>
       <Icon name="sliders" size={20}/>
     </button>
@@ -309,9 +293,28 @@ export function Dock({ data, lifecycle, preferences, activeId, page, onHome, onS
       inert={fixedCollapsed}
       style={{ '--dock-expanded-size': `${42 * 3}px` } as React.CSSProperties}
     >
-      <button className={`dock-btn ${page === 'dashboard' ? 'selected' : ''}`} data-tooltip={t('Home')} data-tooltip-placement="dock" aria-label={t('Home')} aria-current={page === 'dashboard' ? 'page' : undefined} onKeyDown={dockKey} onClick={onHome}><Icon name="home"/></button>
-      <button className={`dock-btn ${page === 'settings' ? 'selected' : ''}`} data-tooltip={t('Settings')} data-tooltip-placement="dock" aria-label={t('Settings')} aria-current={page === 'settings' ? 'page' : undefined} onKeyDown={dockKey} onClick={onSettings}><Icon name="settings"/></button>
-      <button className="dock-btn" data-tooltip={t('Quick switch')} data-tooltip-placement="dock" aria-label={t('Quick switch')} onKeyDown={dockKey} onClick={onSearch}><Icon name="search"/></button>
+      <button className={`dock-btn ${page === 'dashboard' ? 'selected' : ''}`} {...tooltip(t('Home'))} aria-label={t('Home')} aria-current={page === 'dashboard' ? 'page' : undefined} onKeyDown={dockKey} onClick={onHome}><Icon name="home"/></button>
+      <button className={`dock-btn ${page === 'settings' ? 'selected' : ''}`} {...tooltip(t('Settings'))} aria-label={t('Settings')} aria-current={page === 'settings' ? 'page' : undefined} onKeyDown={dockKey} onClick={onSettings}><Icon name="settings"/></button>
+      <button className="dock-btn" {...tooltip(t('Quick switch'))} aria-label={t('Quick switch')} onKeyDown={dockKey} onClick={onSearch}><Icon name="search"/></button>
     </div>
-  </div></div>;
+  </div>
+  {dragging && (draggedApp || dragging.kind === 'workspace') && createPortal(
+    <div
+      ref={element => {
+        ghost.current = element;
+        if (element) {
+          element.style.left = `${ghostPosition.current.left}px`;
+          element.style.top = `${ghostPosition.current.top}px`;
+        }
+      }}
+      className={`dock-drag-preview ${draggedApp ? 'dock-btn' : 'workspace-trigger'}`}
+      aria-hidden="true"
+    >
+      {draggedApp
+        ? <ServiceIcon name={draggedApp.name} url={draggedApp.url} icon={draggedApp.icon} />
+        : <WorkspaceMark name={data.workspaces[draggedWorkspace]?.name ?? null} index={draggedWorkspace} />}
+    </div>,
+    document.body,
+  )}
+  </div>;
 }

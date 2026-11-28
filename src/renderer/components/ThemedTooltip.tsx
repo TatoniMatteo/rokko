@@ -78,11 +78,12 @@ function positionTooltip(element: HTMLElement): TooltipState | null {
   };
 }
 
-export function ThemedTooltip() {
+export function ThemedTooltip({ overService = false }: { overService?: boolean }) {
   const id = useId();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLSpanElement | null>(null);
+  const mirror = overService && tooltip?.position.startsWith('dock-');
 
   useLayoutEffect(() => {
     const element = tooltipRef.current;
@@ -103,6 +104,25 @@ export function ThemedTooltip() {
       setTooltip(current => current === tooltip ? { ...current, left, top } : current);
     }
   }, [tooltip]);
+
+  useLayoutEffect(() => {
+    if (!mirror || !tooltipRef.current) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const rect = tooltipRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const x = Math.floor(rect.left);
+        const y = Math.floor(rect.top);
+        window.rokko.setDockTooltip({
+          x, y, width: Math.ceil(rect.right) - x, height: Math.ceil(rect.bottom) - y,
+        });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.rokko.setDockTooltip(null);
+    };
+  }, [mirror, tooltip]);
 
   useEffect(() => {
     function clear() {
@@ -138,18 +158,23 @@ export function ThemedTooltip() {
     }
 
     function onMouseOver(event: MouseEvent) {
-      show(closestTooltip(event.target));
+      const target = closestTooltip(event.target);
+      if (target && target !== targetRef.current) show(target);
     }
     function onMouseOut(event: MouseEvent) {
       const current = closestTooltip(event.target);
-      if (current && !current.contains(event.relatedTarget as Node | null)) clear();
+      if (current && current === targetRef.current && !current.contains(event.relatedTarget as Node | null)) {
+        clear();
+      }
     }
     function onFocusIn(event: FocusEvent) {
       show(closestTooltip(event.target));
     }
     function onFocusOut(event: FocusEvent) {
       const current = closestTooltip(event.target);
-      if (current && !current.contains(event.relatedTarget as Node | null)) clear();
+      if (current && current === targetRef.current && !current.contains(event.relatedTarget as Node | null)) {
+        clear();
+      }
     }
     function updatePosition() {
       if (targetRef.current) setTooltip(positionTooltip(targetRef.current));
@@ -160,16 +185,22 @@ export function ThemedTooltip() {
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('pointerdown', clear);
+    document.addEventListener('dragstart', clear);
+    window.addEventListener('blur', clear);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver((records) => {
       const target = targetRef.current;
-      if (!target?.isConnected || !target.dataset.tooltip?.trim()) clear();
-      else updatePosition();
+      if (!target) return;
+      if (!target.isConnected || !target.dataset.tooltip?.trim()) clear();
+      else if (records.some((record) => record.type === 'attributes' && record.target === target)) {
+        updatePosition();
+      }
     });
     observer.observe(document.body, {
       attributes: true,
       attributeFilter: ['data-tooltip'],
+      childList: true,
       subtree: true,
     });
     return () => {
@@ -179,6 +210,8 @@ export function ThemedTooltip() {
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
       document.removeEventListener('pointerdown', clear);
+      document.removeEventListener('dragstart', clear);
+      window.removeEventListener('blur', clear);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
       clear();
@@ -192,7 +225,7 @@ export function ThemedTooltip() {
       className={`app-tooltip app-tooltip-${tooltip.position}`}
       id={id}
       role="tooltip"
-      style={{ left: tooltip.left, top: tooltip.top }}
+      style={{ left: tooltip.left, top: tooltip.top, animation: mirror ? 'none' : undefined }}
     >
       {tooltip.text}
     </span>,
