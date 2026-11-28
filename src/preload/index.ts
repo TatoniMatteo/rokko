@@ -88,6 +88,7 @@ const api: RokkoAPI = {
   testNotification: (id) => ipcRenderer.invoke('rokko:test-notification', id),
   getServiceIcon: (url) => ipcRenderer.invoke('rokko:service-icon', url),
   updateBounds: (bounds) => ipcRenderer.send('rokko:bounds', bounds),
+  setDockTooltip: (bounds) => ipcRenderer.send('rokko:dock-tooltip', bounds),
   setOverlayOpen: (open) => ipcRenderer.send('rokko:overlay', open),
   goBack: () => ipcRenderer.invoke('rokko:back'),
   goForward: () => ipcRenderer.invoke('rokko:forward'),

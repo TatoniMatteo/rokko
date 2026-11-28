@@ -20,7 +20,7 @@ function run(binary, args) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${binary} failed (${result.status ?? result.signal})`);
 }
-const output = join(root, 'dist', `linux-${arch}`);
+const output = resolve(root, process.env.ROKKO_PACKAGE_OUTPUT ?? `dist/linux-${arch}`);
 run('corepack', ['pnpm', 'exec', 'electron-builder', '--linux', ...targets, `--${arch}`, '--publish', 'never',
   `--config.directories.output=${output}`,
   `--config.artifactName=rokko-${pkg.version}-linux-${arch}.\${ext}`]);

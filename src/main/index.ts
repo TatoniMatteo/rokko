@@ -69,6 +69,8 @@ function savePreferences(next: typeof preferences): void {
 }
 let win: BaseWindow | null = null;
 let shellView: WebContentsView | null = null;
+let dockTooltip: WebContentsView | null = null;
+let dockTooltipRevision = 0;
 let tray: ReturnType<typeof createTray> | undefined;
 let quitting = false;
 let shutdown: Promise<void> | undefined;
@@ -308,6 +310,8 @@ function ensureView(appInfo: WebApp): WebContentsView {
       }
     });
     remote.on('will-redirect', (event, url) => {
+      // Keep HTTPS redirect chains, including authentication, in this service view.
+      if (isSafeHttpsUrl(url)) return;
       let sameOrigin = false;
       try {
         sameOrigin = new URL(url).origin === new URL(appInfo.url).origin;
@@ -340,7 +344,7 @@ function redrawView(): void {
   hibernation?.reconcile();
   const focused = win.contentView.children.find(
     (view): view is WebContentsView =>
-      view instanceof WebContentsView && view !== shellView && view.webContents.isFocused(),
+      view instanceof WebContentsView && view !== shellView && view !== dockTooltip && view.webContents.isFocused(),
   );
   detachViews();
   const primary = selectedApp();
@@ -356,6 +360,7 @@ function redrawView(): void {
     view.setBounds(rectangles[index]);
     win.contentView.addChildView(view);
   }
+  if (dockTooltip && win.contentView.children.includes(dockTooltip)) win.contentView.addChildView(dockTooltip);
   if (focused && win.contentView.children.includes(focused)) focused.webContents.focus();
 }
 const externalPrompts = new Map<Electron.WebContents, ExternalLinkRequest>();
@@ -821,6 +826,37 @@ function registerIpc(): void {
     const view = activeAppId ? views.get(activeAppId) : undefined;
     if (view) redrawView();
   });
+  ipcMain.on('rokko:dock-tooltip', (event, value: unknown) => {
+    const window = win;
+    const contents = shellView?.webContents;
+    if (!window || !shellView || !contents || !isShellSender(event, contents) || shutdown) return;
+    const revision = ++dockTooltipRevision;
+    if (dockTooltip) window.contentView.removeChildView(dockTooltip);
+    if (value === null) return;
+    const { width, height } = shellView.getBounds();
+    const zoom = contents.getZoomFactor();
+    const rect = nativeViewBounds(value, width, height, zoom);
+    if (!rect?.width || !rect.height || rect.width > 280 * zoom || rect.height > 240 * zoom) return;
+    // Copy the themed DOM tooltip above the service view without taking focus.
+    void contents.capturePage(rect, { stayHidden: true }).then(async image => {
+      if (win !== window || revision !== dockTooltipRevision || image.isEmpty()) return;
+      if (!dockTooltip) {
+        dockTooltip = new WebContentsView({
+          webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
+        });
+        dockTooltip.setBackgroundColor('#00000000');
+        dockTooltip.webContents.on('will-navigate', event => event.preventDefault());
+        dockTooltip.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      }
+      const preview = dockTooltip;
+      preview.setBounds(rect);
+      preview.setBorderRadius(Math.round(9 * zoom));
+      const html = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; style-src \'unsafe-inline\'">' +
+        '<body style="margin:0"><img alt="" style="width:100vw;height:100vh;display:block" src="' + image.toDataURL() + '">';
+      await preview.webContents.loadURL('data:text/html,' + encodeURIComponent(html));
+      if (win === window && revision === dockTooltipRevision) window.contentView.addChildView(preview);
+    }).catch(() => { /* The window may have closed during capture. */ });
+  });
   ipcMain.handle('rokko:back', event => {
     requireShell(event);
     const wc = activeAppId ? views.get(activeAppId)?.webContents : undefined;
@@ -882,6 +918,8 @@ async function createWindow(): Promise<void> {
   win.on('closed', () => {
     for (const id of [...views.keys()]) void closeView(id).catch(() => { /* App shutdown closes all processes. */ });
     shellView?.webContents.close();
+    dockTooltip?.webContents.close();
+    dockTooltip = null;
     shellView = null; win = null;
   });
   resizeShell();
