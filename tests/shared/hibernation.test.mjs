@@ -208,6 +208,23 @@ function managerFixture(startup = false) {
   });
   return { manager, timers, pending, closed, woken, state, setNow: (value) => (now = value) };
 }
+test('unhidden foreground resumes', async () => {
+  const f = managerFixture();
+  f.state.policy.rules = [];
+  f.state.hiddenWorkspaceIds = ['work'];
+  f.state.visibleIds = [];
+  f.manager.reconcile();
+  await drain();
+  f.pending.get('one')();
+  await drain();
+  assert.ok(f.manager.has('one'));
+  f.state.hiddenWorkspaceIds = [];
+  f.state.visibleIds = ['one'];
+  f.manager.reconcile();
+  assert.ok(!f.manager.has('one'));
+  assert.deepEqual(f.woken, [{ id: 'one', loaded: true }]);
+  f.manager.stop();
+});
 test('startup hibernation stays asleep on selection until explicitly resumed', async () => {
   const f = managerFixture(true);
   f.state.visibleIds = [];

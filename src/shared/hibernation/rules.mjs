@@ -180,6 +180,7 @@ export function planHibernation(policy, context, lastUsed, sleeping, now) {
     const sleepingReason = sleeping.get(service.id)?.reason;
     if (
       sleepingReason &&
+      sleepingReason.kind !== 'hidden-workspace' &&
       visible.has(service.id) &&
       !policy.wakeOnSelection &&
       !context.wakeRequestedIds?.includes(service.id)
